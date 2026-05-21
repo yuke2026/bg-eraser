@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>PicMagic — 电商AI作图工具</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;background:linear-gradient(135deg,#f0f4ff,#faf5ff);color:#1a1a2e;line-height:1.5;min-height:100vh}
+.glass{background:rgba(255,255,255,.85);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.3)}
+.step-num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+.step-num.active{background:#7c3aed;color:#fff}
+.step-num.done{background:#22c55e;color:#fff}
+.step-num.pending{background:#e5e7eb;color:#9ca3af}
+.template-btn{padding:12px 18px;border-radius:14px;font-size:14px;font-weight:500;cursor:pointer;transition:.2s;border:1.5px solid #e5e7eb;background:#fff;white-space:nowrap}
+.template-btn:hover{border-color:#a5b4fc;background:#f5f3ff;box-shadow:0 2px 8px rgba(99,102,241,.08)}
+.template-btn.selected{border-color:#7c3aed;background:#f5f3ff;box-shadow:0 0 0 2px rgba(124,58,237,.15)}
+.upload-zone{border:2px dashed #d0d5dd;border-radius:16px;padding:24px;text-align:center;cursor:pointer;transition:.2s;background:#fff}
+.upload-zone:hover{border-color:#7c3aed;background:#faf5ff}
+.upload-zone.drag-over{border-color:#7c3aed;background:#f5f3ff}
+.file-thumb{width:80px;height:80px;border-radius:10px;object-fit:cover;border:2px solid transparent;cursor:pointer;transition:.15s}
+.file-thumb:hover{border-color:#7c3aed}
+.result-thumb{width:100%;aspect-ratio:1/1;border-radius:12px;object-fit:cover;background:#f3f4f6}
+.cmd-tag{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:6px;font-size:12px;font-weight:500}
+.pos-btn{font-size:11px;padding:4px 10px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;transition:.15s;color:#6b7280;white-space:nowrap}
+.pos-btn:hover{border-color:#a5b4fc;background:#f5f3ff;color:#7c3aed}
+.pos-btn.active{border-color:#7c3aed;background:#ede9fe;color:#6d28d9;font-weight:600}
+.spinner{width:20px;height:20px;border:2px solid #e5e7eb;border-top-color:#7c3aed;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fade-in{animation:fi .3s ease-out}
+@keyframes fi{from{opacity:0;transform:translateY(10px)};to{opacity:1;transform:translateY(0)}}
+#fileInput{display:none}
+/* Lightbox */
+.lightbox{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;cursor:pointer;animation:lbfade .25s ease-out}
+.lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+@keyframes lbfade{from{opacity:0}to{opacity:1}}
+</style>
+</head>
+<body>
+<div class="max-w-6xl mx-auto px-6 py-6">
+  <!-- ═══ Header ═══ -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight">
+        <span class="bg-gradient-to-r from-violet-600 to-blue-500 bg-clip-text text-transparent">PicMagic</span>
+        <span class="text-xs font-normal text-gray-400 ml-2 v2-badge">v2</span>
+      </h1>
+      <p class="text-sm text-gray-400 mt-0.5">电商AI作图工具 · 三步搞定商品图</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="/classic/" class="text-sm text-gray-400 hover:text-gray-600 transition">🎯 经典版</a>
+      <span class="w-px h-4 bg-gray-200"></span>
+      <span class="text-sm text-gray-400">📖 使用教程</span>
+    </div>
+  </div>
+
+  <!-- ═══ Steps Indicator ═══ -->
+  <div class="flex items-center gap-3 mb-8 text-sm" id="stepIndicator">
+    <div class="flex items-center gap-2">
+      <span class="step-num active" id="s1num">1</span>
+      <span class="font-medium text-gray-700" id="s1label">上传素材</span>
+    </div>
+    <div class="w-12 h-px bg-gray-200"></div>
+    <div class="flex items-center gap-2">
+      <span class="step-num pending" id="s2num">2</span>
+      <span class="text-gray-400" id="s2label">告诉AI怎么做</span>
+    </div>
+    <div class="w-12 h-px bg-gray-200"></div>
+    <div class="flex items-center gap-2">
+      <span class="step-num pending" id="s3num">3</span>
+      <span class="text-gray-400" id="s3label">下载成果</span>
+    </div>
+  </div>
+
+  <!-- ═══ Content ═══ -->
+  <div class="grid grid-cols-3 gap-6">
+
+    <!-- ─────── Step 1: Upload ─────── -->
+    <div class="glass rounded-3xl p-6" id="step1">
+      <p class="font-semibold text-gray-800 mb-4">① 上传图片素材</p>
+
+      <div class="upload-zone" id="uploadZone">
+        <p class="text-3xl mb-2">📤</p>
+        <p class="text-sm font-medium text-gray-700">拖拽或点击上传图片</p>
+        <p class="text-xs text-gray-400 mt-1">支持 JPG / PNG / WebP · 可批量</p>
+      </div>
+      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" multiple>
+
+      <div id="fileList" class="mt-4 hidden">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-xs font-medium text-gray-500">已上传 <span id="fileCount">0</span> 张</p>
+          <button id="clearFiles" class="text-xs text-red-400 hover:text-red-500 hidden">清空</button>
+        </div>
+        <div class="flex flex-wrap gap-2" id="fileThumbs"></div>
+      </div>
+
+      <!-- Logo -->
+      <div class="mt-5 pt-4 border-t border-gray-100">
+        <p class="text-xs font-medium text-gray-500 mb-2">品牌水印（可选）</p>
+        <div class="flex items-center gap-3">
+          <div id="logoPreview" class="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-sm text-gray-400 flex-shrink-0">Logo</div>
+          <div class="flex-1">
+            <p class="text-xs text-gray-600" id="logoName">未上传</p>
+            <p class="text-xs text-gray-400">建议透明PNG，将缩放至合适大小</p>
+          </div>
+          <button class="px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 text-gray-600" id="logoUploadBtn">上传</button>
+          <input type="file" id="logoInput" accept="image/png,image/jpeg" class="hidden">
+          <button id="removeLogo" class="text-xs text-red-400 hover:text-red-500 hidden">删除</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────── Step 2: Command ─────── -->
+    <div class="glass rounded-3xl p-6 opacity-50 pointer-events-none" id="step2">
+      <p class="font-semibold text-gray-800 mb-4">② 告诉AI怎么做</p>
+
+      <!-- Quick templates -->
+      <p class="text-xs font-medium text-gray-500 mb-2">⚡ 快捷模板</p>
+      <div class="grid grid-cols-2 gap-2 mb-4">
+        <div class="template-btn" data-template="taobao"><span class="text-base">🛍</span> 淘宝主图<br><span class="text-xs text-gray-400 font-normal">去背景+水印+800×800</span></div>
+        <div class="template-btn" data-template="douyin"><span class="text-base">📱</span> 抖音商品卡<br><span class="text-xs text-gray-400 font-normal">去背景+水印+1080×1920</span></div>
+        <div class="template-btn" data-template="pdd"><span class="text-base">🎯</span> 拼多多白底<br><span class="text-xs text-gray-400 font-normal">去背景+白底+750×750</span></div>
+        <div class="template-btn" data-template="jd"><span class="text-base">🏪</span> 京东商品图<br><span class="text-xs text-gray-400 font-normal">去背景+水印+1200×1200</span></div>
+      </div>
+
+      <!-- Quick commands -->
+      <p class="text-xs font-medium text-gray-500 mb-2">💬 常用指令（点击填入）</p>
+      <div class="flex flex-wrap gap-1.5 mb-4">
+        <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="去背景 + 加水印">去背景+水印</button>
+        <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="去背景 + 换白色背景">去背景+白底</button>
+        <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="加水印">仅加水印</button>
+        <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="去背景 + 800×800">去背景+改尺寸</button>
+        <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="去背景 + 加水印 + 800×800">全套处理</button>
+        <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="换蓝色背景">换背景色</button>
+      </div>
+
+      <!-- Custom prompt -->
+      <div class="flex items-center gap-2 mb-2">
+        <div class="flex-1 h-px bg-gray-100"></div>
+        <span class="text-xs text-gray-300">或自定义指令</span>
+        <div class="flex-1 h-px bg-gray-100"></div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-gray-100 p-3 mb-3">
+        <textarea id="promptInput" class="w-full border-0 outline-none resize-none text-sm text-gray-700 placeholder-gray-400" rows="2" placeholder="描述你要怎么处理，例如&#10;去背景 + logo右下角 + 800×800"></textarea>
+        <div id="cmdTags" class="flex gap-1.5 mt-2 pt-2 border-t border-gray-50 min-h-[28px]"></div>
+      </div>
+
+      <!-- Settings -->
+      <div class="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-gray-100 mb-3">
+        <span class="text-sm">📐</span>
+        <span class="text-xs text-gray-600">尺寸预设</span>
+        <select id="sizePreset" class="ml-auto text-xs border border-gray-200 rounded-lg px-2 py-1 text-gray-600 bg-white">
+          <option value="">不调整</option>
+          <option value="800x800">淘宝 800×800</option>
+          <option value="1200x1200">京东 1200×1200</option>
+          <option value="750x750">拼多多 750×750</option>
+          <option value="1080x1920">抖音 1080×1920</option>
+          <option value="custom">自定义</option>
+        </select>
+      </div>
+      <div id="customSize" class="hidden flex items-center gap-2 p-2.5 rounded-xl bg-white border border-gray-100 mb-3">
+        <input id="cw" class="w-16 px-2 py-1 border border-gray-200 rounded-lg text-xs text-center" placeholder="宽" value="800">
+        <span class="text-xs text-gray-400">×</span>
+        <input id="ch" class="w-16 px-2 py-1 border border-gray-200 rounded-lg text-xs text-center" placeholder="高" value="800">
+      </div>
+
+      <!-- Watermark position -->
+      <div class="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-gray-100 mb-3">
+        <span class="text-sm">📍</span>
+        <span class="text-xs text-gray-600">水印位置</span>
+        <div class="ml-auto flex gap-1.5" id="posSelector">
+          <button class="pos-btn active" data-pos="top-left">↖ 左上</button>
+          <button class="pos-btn" data-pos="top-right">↗ 右上</button>
+          <button class="pos-btn" data-pos="bottom-right">↘ 右下</button>
+          <button class="pos-btn" data-pos="bottom-left">↙ 左下</button>
+        </div>
+      </div>
+
+      <button id="processBtn" class="w-full py-3 bg-gradient-to-r from-violet-500 to-blue-500 text-white font-semibold rounded-2xl hover:from-violet-600 hover:to-blue-600 transition shadow-lg shadow-violet-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+        <span>✨</span> 开始处理 <span id="processCount">0</span> 张图片
+      </button>
+    </div>
+
+    <!-- ─────── Step 3: Results ─────── -->
+    <div class="glass rounded-3xl p-6 opacity-50 pointer-events-none" id="step3">
+      <div class="flex items-center justify-between mb-4">
+        <p class="font-semibold text-gray-800">③ 下载成果</p>
+        <span id="statusBadge" class="hidden text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">等待处理</span>
+      </div>
+
+      <!-- Loading -->
+      <div id="loadingState" class="hidden flex flex-col items-center gap-3 py-12">
+        <div class="spinner"></div>
+        <p class="text-sm text-gray-500">AI 正在处理你的图片...</p>
+        <p class="text-xs text-gray-400" id="progressText">准备中</p>
+      </div>
+
+      <!-- Results grid -->
+      <div id="resultsGrid" class="hidden grid grid-cols-2 gap-3"></div>
+
+      <!-- Empty state -->
+      <div id="emptyState" class="flex flex-col items-center gap-2 py-12 text-gray-400">
+        <p class="text-4xl">🖼</p>
+        <p class="text-sm">完成第①②步后，结果将显示在这里</p>
+        <p class="text-xs">支持批量处理，一键下载ZIP</p>
+      </div>
+
+      <!-- Download -->
+      <div id="downloadArea" class="hidden mt-4 space-y-2">
+        <div class="flex items-center justify-between text-xs text-gray-400 mb-1">
+          <span id="resultStats">处理耗时: --</span>
+          <span id="resultCount" class="text-green-500">0/0 成功</span>
+        </div>
+        <div class="flex gap-2">
+          <button id="downloadZipBtn" class="flex-1 py-3 bg-violet-500 text-white text-sm font-semibold rounded-xl hover:bg-violet-600 transition flex items-center justify-center gap-2">
+            <span>📥</span> 下载 ZIP
+          </button>
+          <button id="resetBtn" class="flex-1 py-3 bg-white border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2">
+            <span>🔄</span> 重新开始
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="text-center mt-8 text-xs text-gray-400">
+    💡 提示：上传图片 → 选模板或写指令 → 一键处理下载
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════════
+const API_BASE = window.location.origin.includes('localhost') ? 'http://localhost:8000' : '';
+let uploadedFiles = [];
+let logoFile = null;
+let processedResults = [];
+let selectedTemplate = '';
+let watermarkPosition = 'top-left';
+let useDefaultLogo = false;
+
+// DOM refs
+const step1 = document.getElementById('step1');
+const step2 = document.getElementById('step2');
+const step3 = document.getElementById('step3');
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const fileList = document.getElementById('fileList');
+const fileThumbs = document.getElementById('fileThumbs');
+const fileCount = document.getElementById('fileCount');
+const clearFiles = document.getElementById('clearFiles');
+const logoInput = document.getElementById('logoInput');
+const logoPreview = document.getElementById('logoPreview');
+const logoName = document.getElementById('logoName');
+const removeLogo = document.getElementById('removeLogo');
+const promptInput = document.getElementById('promptInput');
+const cmdTags = document.getElementById('cmdTags');
+const processBtn = document.getElementById('processBtn');
+const processCount = document.getElementById('processCount');
+const sizePreset = document.getElementById('sizePreset');
+const customSize = document.getElementById('customSize');
+const cw = document.getElementById('cw');
+const ch = document.getElementById('ch');
+const loadingState = document.getElementById('loadingState');
+const resultsGrid = document.getElementById('resultsGrid');
+const emptyState = document.getElementById('emptyState');
+const downloadArea = document.getElementById('downloadArea');
+const statusBadge = document.getElementById('statusBadge');
+const progressText = document.getElementById('progressText');
+const resultStats = document.getElementById('resultStats');
+const resultCount = document.getElementById('resultCount');
+const downloadZipBtn = document.getElementById('downloadZipBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+// ═══════════════════════════════════════════════════
+//  File Upload
+// ═══════════════════════════════════════════════════
+uploadZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => addFiles(fileInput.files));
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  addFiles(e.dataTransfer.files);
+});
+
+function addFiles(files) {
+  for (const f of files) {
+    if (!f.type.startsWith('image/')) continue;
+    if (uploadedFiles.some(ef => ef.name === f.name && ef.size === f.size)) continue;
+    uploadedFiles.push(f);
+  }
+  renderFileList();
+  updateStep2();
+}
+
+function renderFileList() {
+  fileThumbs.innerHTML = '';
+  if (uploadedFiles.length === 0) {
+    fileList.classList.add('hidden');
+    return;
+  }
+  fileList.classList.remove('hidden');
+  fileCount.textContent = uploadedFiles.length;
+  clearFiles.classList.remove('hidden');
+
+  uploadedFiles.forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'relative';
+    const url = URL.createObjectURL(f);
+    div.innerHTML = `
+      <img src="${url}" class="file-thumb">
+      <button class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-400 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-500" data-idx="${i}">×</button>
+    `;
+    div.querySelector('button').onclick = () => {
+      uploadedFiles.splice(i, 1);
+      renderFileList();
+      updateStep2();
+    };
+    fileThumbs.appendChild(div);
+  });
+}
+
+clearFiles.onclick = () => {
+  uploadedFiles = [];
+  renderFileList();
+  updateStep2();
+};
+
+// Logo upload
+document.getElementById('logoUploadBtn').addEventListener('click', () => logoInput.click());
+logoInput.addEventListener('change', () => {
+  const f = logoInput.files[0];
+  if (!f) return;
+  logoFile = f;
+  useDefaultLogo = false;
+  const url = URL.createObjectURL(f);
+  logoPreview.innerHTML = `<img src="${url}" class="w-full h-full rounded-xl object-cover">`;
+  logoName.textContent = f.name + ' ✓';
+  removeLogo.textContent = '删除';
+  removeLogo.classList.remove('hidden');
+});
+
+removeLogo.onclick = () => {
+  logoFile = null;
+  logoInput.value = '';
+  // 如果存在默认LOGO，回退到默认
+  if (useDefaultLogo) {
+    logoPreview.innerHTML = `<img src="${API_BASE}/api/v2/default_logo" class="w-full h-full rounded-xl object-cover">`;
+    logoName.textContent = '默认LOGO ✓';
+    removeLogo.textContent = '移除';
+  } else {
+    // 检查服务器是否有默认LOGO
+    fetch(`${API_BASE}/api/v2/default_logo/status`).then(r => r.json()).then(data => {
+      if (data.exists) {
+        useDefaultLogo = true;
+        logoPreview.innerHTML = `<img src="${API_BASE}/api/v2/default_logo" class="w-full h-full rounded-xl object-cover">`;
+        logoName.textContent = '默认LOGO ✓';
+        removeLogo.textContent = '移除';
+      } else {
+        logoPreview.innerHTML = 'Logo';
+        logoName.textContent = '未上传';
+        removeLogo.classList.add('hidden');
+      }
+    }).catch(() => {
+      logoPreview.innerHTML = 'Logo';
+      logoName.textContent = '未上传';
+      removeLogo.classList.add('hidden');
+    });
+  }
+};
+
+// Quick commands — 点击填入输入框
+document.querySelectorAll('.quick-cmd').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('selected'));
+    selectedTemplate = '';
+    promptInput.value = el.dataset.cmd;
+    promptInput.dispatchEvent(new Event('input'));
+  });
+});
+
+// Watermark position selector
+document.querySelectorAll('.pos-btn').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    watermarkPosition = el.dataset.pos;
+  });
+});
+
+// ═══════════════════════════════════════════════════
+//  Step 2: Templates & Prompt
+// ═══════════════════════════════════════════════════
+document.querySelectorAll('.template-btn').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedTemplate = el.dataset.template;
+    promptInput.value = '';
+    cmdTags.innerHTML = '';
+    updateProcessBtn();
+    // Show template tags
+    const names = { taobao: '淘宝主图', douyin: '抖音商品卡', pdd: '拼多多白底', jd: '京东商品图' };
+    cmdTags.innerHTML = `<span class="cmd-tag bg-violet-50 text-violet-600">📋 ${names[selectedTemplate] || selectedTemplate}</span>`;
+  });
+});
+
+promptInput.addEventListener('input', () => {
+  if (promptInput.value.trim()) {
+    document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('selected'));
+    selectedTemplate = '';
+    parsePromptPreview(promptInput.value);
+  } else if (!selectedTemplate) {
+    cmdTags.innerHTML = '';
+  }
+  updateProcessBtn();
+});
+
+function parsePromptPreview(text) {
+  cmdTags.innerHTML = '';
+  const lower = text.toLowerCase();
+  if (lower.includes('去背景') || lower.includes('抠图')) cmdTags.innerHTML += '<span class="cmd-tag bg-blue-50 text-blue-600">✓ 去背景</span>';
+  if (lower.includes('水印') || lower.includes('logo')) cmdTags.innerHTML += '<span class="cmd-tag bg-purple-50 text-purple-600">✓ 加水印</span>';
+  const sizeMatch = text.match(/(\d+)\s*[×xX*]\s*(\d+)/);
+  if (sizeMatch) cmdTags.innerHTML += `<span class="cmd-tag bg-green-50 text-green-600">✓ ${sizeMatch[1]}×${sizeMatch[2]}</span>`;
+}
+
+// Size preset
+sizePreset.addEventListener('change', () => {
+  if (sizePreset.value === 'custom') {
+    customSize.classList.remove('hidden');
+  } else {
+    customSize.classList.add('hidden');
+    if (sizePreset.value) {
+      const [w, h] = sizePreset.value.split('x');
+      const sizeText = `${w}×${h}`;
+      // Append to prompt
+      if (!promptInput.value.includes(sizeText)) {
+        promptInput.value = promptInput.value.trim() + (promptInput.value ? '\n' : '') + `${w}×${h}`;
+        promptInput.dispatchEvent(new Event('input'));
+      }
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════
+//  Steps logic
+// ═══════════════════════════════════════════════════
+function updateStep2() {
+  const hasFiles = uploadedFiles.length > 0;
+  step2.classList.toggle('opacity-50', !hasFiles);
+  step2.classList.toggle('pointer-events-none', !hasFiles);
+  processCount.textContent = uploadedFiles.length;
+  updateProcessBtn();
+  if (hasFiles) {
+    document.getElementById('s1num').className = 'step-num done';
+    document.getElementById('s1num').textContent = '✓';
+    document.getElementById('s2num').className = 'step-num active';
+    document.getElementById('s2num').textContent = '2';
+    document.getElementById('s2label').className = 'font-medium text-gray-700';
+  }
+}
+
+function updateProcessBtn() {
+  const hasCmd = selectedTemplate || promptInput.value.trim();
+  processBtn.disabled = uploadedFiles.length === 0 || !hasCmd;
+  processCount.textContent = uploadedFiles.length;
+}
+
+function updateStep3() {
+  step3.classList.remove('opacity-50', 'pointer-events-none');
+  document.getElementById('s2num').className = 'step-num done';
+  document.getElementById('s2num').textContent = '✓';
+  document.getElementById('s3num').className = 'step-num active';
+  document.getElementById('s3num').textContent = '3';
+  document.getElementById('s3label').className = 'font-medium text-gray-700';
+}
+
+// ═══════════════════════════════════════════════════
+//  Process
+// ═══════════════════════════════════════════════════
+processBtn.addEventListener('click', async () => {
+  const form = new FormData();
+  for (const f of uploadedFiles) form.append('files', f);
+  if (logoFile) form.append('logo', logoFile);
+  form.append('watermark_position', watermarkPosition);
+  form.append('use_logo', useDefaultLogo ? 'true' : 'false');
+
+  if (selectedTemplate) {
+    form.append('template', selectedTemplate);
+  } else {
+    form.append('prompt', promptInput.value);
+  }
+
+  // Start processing UI
+  updateStep3();
+  loadingState.classList.remove('hidden');
+  resultsGrid.classList.add('hidden');
+  downloadArea.classList.add('hidden');
+  emptyState.classList.add('hidden');
+  statusBadge.classList.remove('hidden');
+  statusBadge.textContent = '⏳ 处理中';
+  statusBadge.className = 'text-xs bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-medium';
+  progressText.textContent = '正在发送请求...';
+  processBtn.disabled = true;
+  processBtn.innerHTML = '<div class="spinner"></div> 处理中...';
+
+  try {
+    // Simulate progress steps
+    const steps = ['解析指令...', '正在去背景...', '处理水印...', '调整尺寸...', '打包中...'];
+    let si = 0;
+    const prog = setInterval(() => {
+      if (si < steps.length) progressText.textContent = steps[si++];
+    }, 700);
+
+    const res = await fetch(`${API_BASE}/api/v2/process`, { method: 'POST', body: form });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    clearInterval(prog);
+    loadingState.classList.add('hidden');
+    statusBadge.textContent = `✅ 处理完成 (${data.total_time})`;
+    statusBadge.className = 'text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-medium';
+
+    // Store results
+    processedResults = data.results || [];
+    const downloadId = data.download_id;
+
+    // Show real image previews
+    resultsGrid.classList.remove('hidden');
+    resultsGrid.innerHTML = '';
+    for (let i = 0; i < (data.results || []).length; i++) {
+      const r = data.results[i];
+      const previewUrl = r.preview_url;
+      const div = document.createElement('div');
+      div.className = 'bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm fade-in';
+      div.style.animationDelay = `${i * 0.1}s`;
+      div.innerHTML = `
+        <div class="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">
+          <img src="${API_BASE}${previewUrl}" class="w-full h-full object-contain cursor-pointer" alt="${r.filename}"
+               onclick="openLightbox('${API_BASE}${previewUrl}')"
+               onerror="this.parentElement.innerHTML='<span class=text-4xl>🖼</span>'">
+        </div>
+        <div class="p-2.5">
+          <p class="text-xs font-medium text-gray-700 truncate">${r.filename}</p>
+          <p class="text-xs text-gray-400">${(r.size / 1024).toFixed(0)}KB · ${r.time}</p>
+        </div>
+      `;
+      resultsGrid.appendChild(div);
+    }
+
+    downloadArea.classList.remove('hidden');
+    resultStats.textContent = `处理耗时: ${data.total_time}`;
+    resultCount.textContent = `${data.total}/${data.total} 成功`;
+
+    // Store download_id for ZIP download
+    window._lastDownloadId = downloadId;
+
+  } catch (err) {
+    clearInterval(prog);
+    loadingState.classList.add('hidden');
+    statusBadge.textContent = '❌ 处理失败';
+    statusBadge.className = 'text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium';
+    emptyState.innerHTML = `
+      <p class="text-4xl">😅</p>
+      <p class="text-sm text-gray-500">处理失败: ${err.message}</p>
+      <button onclick="location.reload()" class="mt-2 text-sm text-violet-500 underline">重试</button>
+    `;
+    emptyState.classList.remove('hidden');
+  } finally {
+    processBtn.disabled = false;
+    processBtn.innerHTML = '<span>✨</span> 开始处理';
+  }
+});
+
+// Download ZIP — 直接跳转到后端下载地址
+downloadZipBtn.addEventListener('click', () => {
+  const did = window._lastDownloadId;
+  if (!did) { alert('请先处理图片'); return; }
+  window.open(`${API_BASE}/api/v2/download/${did}`, '_blank');
+});
+
+// Lightbox — 点击图片放大预览
+function openLightbox(src) {
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.onclick = () => lb.remove();
+  lb.innerHTML = `<img src="${src}">`;
+  document.body.appendChild(lb);
+}
+
+// Reset
+resetBtn.addEventListener('click', () => location.reload());
+
+// ═══ 检查默认LOGO ═══
+(async function checkDefaultLogo() {
+  try {
+    const res = await fetch(`${API_BASE}/api/v2/default_logo/status`);
+    const data = await res.json();
+    if (data.exists) {
+      useDefaultLogo = true;
+      logoPreview.innerHTML = `<img src="${API_BASE}/api/v2/default_logo" class="w-full h-full rounded-xl object-cover">`;
+      logoName.textContent = '默认LOGO ✓';
+      removeLogo.textContent = '移除';
+      removeLogo.classList.remove('hidden');
+    }
+  } catch (e) {
+    // 忽略，没有默认LOGO不影响使用
+  }
+})();
+
+</script>
+</body>
+</html>

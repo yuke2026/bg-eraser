@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>BgEraser Pro — 对话式AI作图</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;background:#f0f2f5;color:#1a1a2e;line-height:1.5}
+.chat-msg{max-width:85%;padding:14px 18px;border-radius:16px;font-size:14px;line-height:1.6}
+.chat-msg.user{background:#3b82f6;color:#fff;border-bottom-right-radius:4px;align-self:flex-end}
+.chat-msg.ai{background:#fff;color:#1a1a2e;border:1px solid #e5e7eb;border-bottom-left-radius:4px;align-self:flex-start}
+.chat-input{border:1.5px solid #e5e7eb;border-radius:14px;padding:12px 16px;outline:none;transition:.2s;width:100%}
+.chat-input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+.thumb{width:72px;height:72px;border-radius:10px;object-fit:cover;border:2px solid transparent;cursor:pointer;transition:.15s}
+.thumb:hover{border-color:#3b82f6}
+.thumb.active{border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.3)}
+.thumb-add{width:72px;height:72px;border-radius:10px;border:2px dashed #d0d5dd;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#9ca3af;font-size:24px;transition:.15s}
+.thumb-add:hover{border-color:#3b82f6;color:#3b82f6}
+.quick-btn{padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer;transition:.15s;white-space:nowrap}
+.quick-btn:hover{background:#f3f4f6;border-color:#d1d5db}
+.quick-btn.primary{background:#eff6ff;border-color:#93c5fd;color:#2563eb}
+.result-img{width:100%;aspect-ratio:1/1;border-radius:12px;object-fit:cover;background:#f3f4f6}
+</style>
+</head>
+<body>
+<div class="max-w-6xl mx-auto h-screen flex flex-col">
+  <!-- Header -->
+  <div class="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <h1 class="text-lg font-bold"><span class="text-blue-500">Bg</span>Eraser <span class="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Pro</span></h1>
+      <span class="text-xs text-gray-400">|</span>
+      <span class="text-sm text-gray-500">电商 AI 作图工具</span>
+    </div>
+    <div class="flex items-center gap-3 text-sm text-gray-500">
+      <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-green-400"></span> 已连接</span>
+      <span class="w-px h-4 bg-gray-200"></span>
+      <span class="cursor-pointer hover:text-gray-700">📖 使用教程</span>
+    </div>
+  </div>
+
+  <div class="flex flex-1 overflow-hidden">
+    <!-- Left Panel: Image Library -->
+    <div class="w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+      <div class="p-4 border-b border-gray-100">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">图片素材</p>
+        <div class="thumb-add mb-3">+</div>
+        <p class="text-xs text-gray-400 mb-2">已上传 3 张</p>
+        <div class="flex flex-wrap gap-2">
+          <div class="thumb active" style="background:#fde68a"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Crect width='72' height='72' fill='%23fde68a'/%3E%3Ctext x='36' y='40' text-anchor='middle' fill='%2392700e' font-size='10'%3E商品1%3C/text%3E%3C/svg%3E" class="w-full h-full rounded-lg"></div>
+          <div class="thumb" style="background:#bbf7d0"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Crect width='72' height='72' fill='%23bbf7d0'/%3E%3Ctext x='36' y='40' text-anchor='middle' fill='%23166534' font-size='10'%3E商品2%3C/text%3E%3C/svg%3E" class="w-full h-full rounded-lg"></div>
+          <div class="thumb" style="background:#bfdbfe"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Crect width='72' height='72' fill='%23bfdbfe'/%3E%3Ctext x='36' y='40' text-anchor='middle' fill='%231e40af' font-size='10'%3E商品3%3C/text%3E%3C/svg%3E" class="w-full h-full rounded-lg"></div>
+        </div>
+      </div>
+      <div class="p-4 border-b border-gray-100">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">水印 Logo</p>
+        <div class="flex items-center gap-2">
+          <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-xs">Logo</div>
+          <button class="text-xs text-blue-500 hover:text-blue-600">更换</button>
+          <button class="text-xs text-gray-400 hover:text-gray-600">删除</button>
+        </div>
+      </div>
+      <div class="p-4 flex-1">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">尺寸预设</p>
+        <div class="space-y-1.5">
+          <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer"><input type="radio" name="size" checked class="accent-blue-500"><span>淘宝主图 800×800</span></label>
+          <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer"><input type="radio" name="size" class="accent-blue-500"><span>京东 1200×1200</span></label>
+          <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer"><input type="radio" name="size" class="accent-blue-500"><span>拼多多 750×750</span></label>
+          <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer"><input type="radio" name="size" class="accent-blue-500"><span>抖音 1080×1920</span></label>
+          <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer"><input type="radio" name="size" class="accent-blue-500"><span>自定义</span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: Chat + Preview -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <!-- Chat Messages -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-4">
+        <div class="flex flex-col gap-3 items-start chat-msg ai">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs text-blue-500 font-bold">B</span>
+            <span class="text-xs font-medium text-gray-500">BgEraser Pro</span>
+          </div>
+          <p>你好！我是你的 AI 电商作图助手 🎨</p>
+          <p class="text-gray-500">上传商品图片后，告诉我你想怎么处理，例如：</p>
+          <div class="flex flex-wrap gap-1.5 mt-1">
+            <span class="px-2.5 py-1 bg-gray-100 rounded-lg text-xs text-gray-600">"去背景 + 加logo + 800×800"</span>
+            <span class="px-2.5 py-1 bg-gray-100 rounded-lg text-xs text-gray-600">"把这3张图批量去背景，输出正方形"</span>
+            <span class="px-2.5 py-1 bg-gray-100 rounded-lg text-xs text-gray-600">"换白色背景，logo放右下角"</span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-2 items-end chat-msg user">
+          <p>去背景，加logo水印在右下角，输出800×800</p>
+        </div>
+
+        <div class="flex flex-col gap-3 items-start chat-msg ai">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs text-blue-500 font-bold">B</span>
+            <span class="text-xs font-medium text-gray-500">BgEraser Pro</span>
+          </div>
+          <p>好的！我理解你需要以下操作：</p>
+          <div class="flex gap-2">
+            <span class="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-medium">① 去背景</span>
+            <span class="px-3 py-1 rounded-full bg-purple-50 text-purple-600 text-xs font-medium">② 加水印(右下)</span>
+            <span class="px-3 py-1 rounded-full bg-green-50 text-green-600 text-xs font-medium">③ 调整 800×800</span>
+          </div>
+          <p class="text-gray-500">正在处理 3 张图片...</p>
+          <!-- Progress bar -->
+          <div class="w-full bg-gray-100 rounded-full h-2 mt-1">
+            <div class="bg-blue-500 h-2 rounded-full" style="width:66%"></div>
+          </div>
+          <p class="text-xs text-gray-400">进度: 2/3 完成</p>
+        </div>
+
+        <div class="flex flex-col gap-3 items-start chat-msg ai">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-xs text-green-500 font-bold">✓</span>
+            <span class="text-xs font-medium text-green-600">处理完成</span>
+          </div>
+          <p>3 张图片已全部处理好 ✅</p>
+          <!-- Results grid -->
+          <div class="grid grid-cols-3 gap-3 w-full mt-1">
+            <div class="bg-white rounded-xl border border-gray-100 p-2">
+              <div class="result-img mb-2" style="background:#fee2e2"></div>
+              <p class="text-xs text-gray-500 text-center">商品1_处理后.png</p>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-100 p-2">
+              <div class="result-img mb-2" style="background:#dcfce7"></div>
+              <p class="text-xs text-gray-500 text-center">商品2_处理后.png</p>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-100 p-2">
+              <div class="result-img mb-2" style="background:#dbeafe"></div>
+              <p class="text-xs text-gray-500 text-center">商品3_处理后.png</p>
+            </div>
+          </div>
+          <div class="flex gap-2 mt-1">
+            <button class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-xl hover:bg-blue-600 transition">📥 下载全部 (ZIP)</button>
+            <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm rounded-xl hover:bg-gray-50 transition">单张查看</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="flex-shrink-0 bg-white border-t border-gray-200 px-4 py-4">
+        <!-- Quick action buttons -->
+        <div class="flex gap-2 mb-3 overflow-x-auto pb-1">
+          <button class="quick-btn primary">✨ 去背景</button>
+          <button class="quick-btn">🏷 加水印</button>
+          <button class="quick-btn">📐 改尺寸</button>
+          <button class="quick-btn">🎨 换背景色</button>
+          <button class="quick-btn">🖼 拼图</button>
+          <span class="text-xs text-gray-300 self-center">|</span>
+          <button class="quick-btn text-blue-500 border-blue-200">📦 批量处理</button>
+        </div>
+        <!-- Input row -->
+        <div class="flex items-center gap-3">
+          <div class="flex-1 relative">
+            <input class="chat-input pr-20" placeholder="描述你要做的操作，例如：去背景 + 加logo + 800×800" value="去背景，加logo水印在右下角，输出800×800">
+            <div class="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+              <button class="p-2 text-gray-400 hover:text-gray-600 transition text-lg" title="上传图片">📎</button>
+            </div>
+          </div>
+          <button class="px-5 py-3 bg-blue-500 text-white font-medium rounded-xl hover:bg-blue-600 transition flex items-center gap-2 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/></svg>
+            执行
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

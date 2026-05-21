@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ImgCraft — 电商AI工作台</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;background:#0f0f13;color:#e5e7eb;line-height:1.5}
+.sidebar{background:#16161b;border-right:1px solid #23232a}
+.panel-header{font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em}
+.image-bin-item{padding:8px 10px;border-radius:8px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:10px}
+.image-bin-item:hover{background:#1e1e26}
+.image-bin-item.active{background:#1e1e26;border:1px solid #3b82f6}
+.cmd-pill{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:6px;font-size:12px;font-weight:500}
+.cmd-input{background:#1a1a22;border:1.5px solid #2a2a35;border-radius:10px;padding:12px 16px;outline:none;width:100%;color:#e5e7eb;font-size:14px;transition:.15s}
+.cmd-input:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.canvas-area{background:#18181d;border:1px solid #25252d;border-radius:12px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+</style>
+</head>
+<body class="flex h-screen overflow-hidden">
+  <!-- Left Sidebar -->
+  <div class="sidebar w-60 flex-shrink-0 flex flex-col">
+    <div class="p-4 border-b border-[#23232a]">
+      <h1 class="text-base font-bold tracking-tight"><span class="text-indigo-400">Img</span>Craft</h1>
+      <p class="text-xs text-zinc-600 mt-0.5">电商AI工作台</p>
+    </div>
+
+    <!-- Upload area -->
+    <div class="p-4 border-b border-[#23232a]">
+      <div class="border-2 border-dashed border-[#2a2a35] rounded-xl p-4 text-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-500/5 transition">
+        <p class="text-2xl mb-1">📤</p>
+        <p class="text-xs text-zinc-400">拖拽图片或点击上传</p>
+        <p class="text-xs text-zinc-600 mt-0.5">支持 JPG / PNG / WebP</p>
+      </div>
+    </div>
+
+    <!-- Image bin -->
+    <div class="flex-1 overflow-y-auto p-3">
+      <p class="panel-header px-1 mb-2">图片列表 (3)</p>
+      <div class="space-y-1">
+        <div class="image-bin-item active">
+          <div class="w-10 h-10 rounded-lg bg-amber-100/20 flex-shrink-0"></div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm text-zinc-200 truncate">商品主图_01.jpg</p>
+            <p class="text-xs text-zinc-500">2.3 MB · 2400×2400</p>
+          </div>
+          <span class="w-2 h-2 rounded-full bg-green-400 flex-shrink-0"></span>
+        </div>
+        <div class="image-bin-item">
+          <div class="w-10 h-10 rounded-lg bg-green-100/20 flex-shrink-0"></div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm text-zinc-200 truncate">商品主图_02.jpg</p>
+            <p class="text-xs text-zinc-500">1.8 MB · 2400×2400</p>
+          </div>
+          <span class="w-2 h-2 rounded-full bg-zinc-600 flex-shrink-0"></span>
+        </div>
+        <div class="image-bin-item">
+          <div class="w-10 h-10 rounded-lg bg-blue-100/20 flex-shrink-0"></div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm text-zinc-200 truncate">商品主图_03.jpg</p>
+            <p class="text-xs text-zinc-500">1.5 MB · 2400×2400</p>
+          </div>
+          <span class="w-2 h-2 rounded-full bg-zinc-600 flex-shrink-0"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom: Logo + Presets -->
+    <div class="p-3 border-t border-[#23232a]">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-xs text-zinc-400">L</div>
+        <div class="flex-1">
+          <p class="text-xs text-zinc-400">品牌水印</p>
+          <p class="text-xs text-zinc-600">公司logo.png</p>
+        </div>
+        <button class="text-xs text-indigo-400 hover:text-indigo-300">更换</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Area -->
+  <div class="flex-1 flex flex-col min-w-0">
+    <!-- Command Bar -->
+    <div class="flex-shrink-0 flex items-center gap-3 px-5 py-3 border-b border-[#23232a] bg-[#16161b]">
+      <div class="flex-1 relative">
+        <input class="cmd-input" placeholder="输入指令，例如：去背景 + 右下角水印 + 800×800" value="去背景 + 右下角水印 + 800×800">
+      </div>
+      <button class="px-5 py-2.5 bg-indigo-500 text-white text-sm font-medium rounded-lg hover:bg-indigo-600 transition flex items-center gap-2">
+        <span>▶</span> 执行
+      </button>
+    </div>
+
+    <!-- Content: Canvas + Results -->
+    <div class="flex-1 flex p-5 gap-5 min-h-0">
+      <!-- Left: Canvas Preview -->
+      <div class="flex-1 flex flex-col min-w-0">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <p class="panel-header">处理预览</p>
+            <span class="badge bg-green-500/10 text-green-400 border border-green-500/20">实时预览</span>
+          </div>
+          <div class="flex gap-1">
+            <button class="px-3 py-1 text-xs text-zinc-400 bg-[#1a1a22] rounded-md hover:text-zinc-200">原图</button>
+            <button class="px-3 py-1 text-xs text-white bg-indigo-500 rounded-md">结果</button>
+            <button class="px-3 py-1 text-xs text-zinc-400 bg-[#1a1a22] rounded-md hover:text-zinc-200">对比</button>
+          </div>
+        </div>
+        <div class="canvas-area flex-1 flex items-center justify-center">
+          <div class="text-center">
+            <div class="w-56 h-56 rounded-xl bg-zinc-800/50 mx-auto mb-3 flex items-center justify-center" style="background-image:repeating-conic-gradient(#2a2a35 0% 25%,#1a1a22 0% 50%);background-size:12px 12px">
+              <div class="w-32 h-32 rounded-lg bg-amber-200/10 flex items-center justify-center">
+                <span class="text-4xl">👕</span>
+              </div>
+            </div>
+            <p class="text-sm text-zinc-400">商品1 · 处理后预览</p>
+            <p class="text-xs text-zinc-600 mt-0.5">已去背景 · 800×800</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Operations Panel -->
+      <div class="w-72 flex-shrink-0 flex flex-col gap-4">
+        <!-- Processing Pipeline -->
+        <div class="canvas-area p-4">
+          <p class="panel-header mb-3">处理流程</p>
+          <div class="space-y-2">
+            <div class="flex items-center gap-3 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+              <span class="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center text-xs text-green-400">✓</span>
+              <span class="text-sm text-zinc-300">去背景</span>
+              <span class="ml-auto text-xs text-green-400">0.8s</span>
+            </div>
+            <div class="flex items-center gap-3 p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+              <span class="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center text-xs text-indigo-400">2</span>
+              <span class="text-sm text-zinc-300">加水印 (右下角)</span>
+              <span class="ml-auto flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
+                <span class="text-xs text-indigo-400">处理中</span>
+              </span>
+            </div>
+            <div class="flex items-center gap-3 p-2 rounded-lg bg-zinc-800/50">
+              <span class="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-xs text-zinc-500">3</span>
+              <span class="text-sm text-zinc-500">调整 800×800</span>
+              <span class="ml-auto text-xs text-zinc-600">等待中</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="canvas-area p-4">
+          <p class="panel-header mb-3">输出设置</p>
+          <div class="space-y-2.5">
+            <div>
+              <p class="text-xs text-zinc-500 mb-1">输出尺寸</p>
+              <div class="flex gap-2">
+                <input class="w-20 px-2 py-1.5 bg-[#1a1a22] border border-[#2a2a35] rounded-md text-sm text-zinc-300 text-center" value="800">
+                <span class="self-center text-zinc-600">×</span>
+                <input class="w-20 px-2 py-1.5 bg-[#1a1a22] border border-[#2a2a35] rounded-md text-sm text-zinc-300 text-center" value="800">
+              </div>
+            </div>
+            <div>
+              <p class="text-xs text-zinc-500 mb-1">裁剪模式</p>
+              <select class="w-full px-2 py-1.5 bg-[#1a1a22] border border-[#2a2a35] rounded-md text-sm text-zinc-300">
+                <option>智能裁剪 (cover)</option>
+                <option>留白填充 (contain)</option>
+                <option>直接拉伸</option>
+              </select>
+            </div>
+            <div>
+              <p class="text-xs text-zinc-500 mb-1">输出格式</p>
+              <div class="flex gap-2">
+                <label class="flex items-center gap-1 text-xs text-zinc-400 cursor-pointer"><input type="radio" name="fmt" checked class="accent-indigo-500"> PNG</label>
+                <label class="flex items-center gap-1 text-xs text-zinc-400 cursor-pointer"><input type="radio" name="fmt" class="accent-indigo-500"> JPG</label>
+                <label class="flex items-center gap-1 text-xs text-zinc-400 cursor-pointer"><input type="radio" name="fmt" class="accent-indigo-500"> WebP</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download -->
+        <button class="w-full py-3 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition flex items-center justify-center gap-2 text-sm">
+          <span>📥</span> 下载全部 (ZIP)
+        </button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
