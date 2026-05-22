@@ -99,17 +99,17 @@ def parse_prompt(prompt: str) -> dict[str, Any]:
     return {"actions": actions, "is_batch": is_batch}
 
 
-# 快捷模板
+# 快捷模板（顺序：去背景→改尺寸→加水印，确保水印在最终尺寸上渲染）
 TEMPLATES: dict[str, list[dict[str, Any]]] = {
     "taobao": [
         {"action": "remove_bg", "params": {}},
-        {"action": "add_watermark", "params": {"position": "top-left"}},
         {"action": "resize", "params": {"width": 800, "height": 800, "mode": "contain"}},
+        {"action": "add_watermark", "params": {"position": "top-left"}},
     ],
     "jd": [
         {"action": "remove_bg", "params": {}},
-        {"action": "add_watermark", "params": {"position": "top-left"}},
         {"action": "resize", "params": {"width": 1200, "height": 1200, "mode": "contain"}},
+        {"action": "add_watermark", "params": {"position": "top-left"}},
     ],
     "pdd": [
         {"action": "remove_bg", "params": {}},
@@ -118,8 +118,8 @@ TEMPLATES: dict[str, list[dict[str, Any]]] = {
     ],
     "douyin": [
         {"action": "remove_bg", "params": {}},
-        {"action": "add_watermark", "params": {"position": "top-left"}},
         {"action": "resize", "params": {"width": 1080, "height": 1920, "mode": "contain"}},
+        {"action": "add_watermark", "params": {"position": "top-left"}},
     ],
 }
 

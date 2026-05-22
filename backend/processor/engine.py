@@ -79,28 +79,31 @@ def add_watermark(
     image_bytes: bytes,
     logo_bytes: bytes,
     position: str = "top-left",
-    opacity: float = 0.8,
+    opacity: float = 1.0,
     size_ratio: float = 0.75,
-    margin: int = 20,
+    margin: int | None = None,
 ) -> bytes:
-    """加 logo 水印"""
+    """加 logo 水印 — 在最终尺寸上渲染，清晰不模糊"""
     img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
     logo = Image.open(io.BytesIO(logo_bytes)).convert("RGBA")
 
-    # 缩放 logo
-    logo_w = int(img.width * size_ratio)
+    # 缩放 logo — 基于最终图片尺寸
+    logo_w = max(int(img.width * size_ratio), 20)
     logo_h = int(logo.height * (logo_w / logo.width))
     logo = logo.resize((logo_w, logo_h), Image.LANCZOS)
 
+    # 边距 = 图片宽度的 2%（最小 8px）
+    m = margin if margin is not None else max(int(img.width * 0.02), 8)
+
     # 位置
     positions = {
-        "top-left": (margin, margin),
-        "top-right": (img.width - logo_w - margin, margin),
-        "bottom-left": (margin, img.height - logo_h - margin),
-        "bottom-right": (img.width - logo_w - margin, img.height - logo_h - margin),
+        "top-left": (m, m),
+        "top-right": (img.width - logo_w - m, m),
+        "bottom-left": (m, img.height - logo_h - m),
+        "bottom-right": (img.width - logo_w - m, img.height - logo_h - m),
         "center": ((img.width - logo_w) // 2, (img.height - logo_h) // 2),
     }
-    pos = positions.get(position, positions["bottom-right"])
+    pos = positions.get(position, positions["top-left"])
 
     # 透明度
     r, g, b, a = logo.split()
@@ -119,9 +122,22 @@ def process_pipeline(
     actions: list[dict[str, Any]],
     logo_bytes: bytes | None = None,
 ) -> bytes:
-    """按操作链依次处理一张图片"""
-    data = image_bytes
+    """按操作链依次处理一张图片。
+    自动确保 resize 在 add_watermark 之前执行，保证水印在最终尺寸上渲染、清晰不模糊。
+    """
+    # 重排：确保 resize 在 add_watermark 之前
+    watermark_action = None
+    clean_actions = []
     for step in actions:
+        if step["action"] == "add_watermark" and logo_bytes:
+            watermark_action = step
+        else:
+            clean_actions.append(step)
+    if watermark_action:
+        clean_actions.append(watermark_action)
+
+    data = image_bytes
+    for step in clean_actions:
         action = step["action"]
         params = step.get("params", {})
 
