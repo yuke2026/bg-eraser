@@ -35,49 +35,67 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-
 .lightbox{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;cursor:pointer;animation:lbfade .25s ease-out}
 .lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
 @keyframes lbfade{from{opacity:0}to{opacity:1}}
+/* ── Mobile Responsive ── */
+@media(max-width:767px){
+  .step-label{display:none}
+  .step-dots{display:flex!important}
+  .mobile-full{grid-column:1/-1}
+  .file-thumb{width:60px;height:60px}
+  .template-btn{white-space:normal;padding:10px 12px;font-size:13px}
+  .pos-wrap{flex-wrap:wrap;gap:4px}
+  .pos-wrap .pos-btn{flex:1;min-width:0;text-align:center;padding:6px 4px;font-size:10px}
+  .upload-zone{padding:16px}
+  .hdr-right{gap:8px}
+  .hdr-right a,.hdr-right span{font-size:12px}
+}
+@media(max-width:480px){
+  .template-btn{font-size:12px;padding:8px 10px}
+  .quick-cmd{font-size:11px!important;padding:5px 8px!important}
+}
+
 </style>
 </head>
 <body>
-<div class="max-w-6xl mx-auto px-6 py-6">
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
   <!-- ═══ Header ═══ -->
-  <div class="flex items-center justify-between mb-6">
+  <div class="flex items-center justify-between mb-4 md:mb-6">
     <div>
-      <h1 class="text-2xl font-bold tracking-tight">
+      <h1 class="text-xl sm:text-2xl font-bold tracking-tight">
         <span class="bg-gradient-to-r from-violet-600 to-blue-500 bg-clip-text text-transparent">PicMagic</span>
         <span class="text-xs font-normal text-gray-400 ml-2 v2-badge">v2</span>
       </h1>
-      <p class="text-sm text-gray-400 mt-0.5">电商AI作图工具 · 三步搞定商品图</p>
+      <p class="text-xs sm:text-sm text-gray-400 mt-0.5">电商AI作图工具 · 三步搞定商品图</p>
     </div>
-    <div class="flex items-center gap-3">
-      <a href="/classic/" class="text-sm text-gray-400 hover:text-gray-600 transition">🎯 经典版</a>
-      <span class="w-px h-4 bg-gray-200"></span>
-      <span class="text-sm text-gray-400">📖 使用教程</span>
+    <div class="flex items-center gap-3 hdr-right">
+      <a href="/classic/" class="text-sm text-gray-400 hover:text-gray-600 transition whitespace-nowrap">🎯 经典版</a>
+      <span class="w-px h-4 bg-gray-200 hidden sm:block"></span>
+      <span class="text-sm text-gray-400 hidden sm:inline">📖 使用教程</span>
     </div>
   </div>
 
   <!-- ═══ Steps Indicator ═══ -->
-  <div class="flex items-center gap-3 mb-8 text-sm" id="stepIndicator">
-    <div class="flex items-center gap-2">
+  <div class="flex items-center gap-3 mb-6 md:mb-8 text-sm" id="stepIndicator">
+    <div class="flex items-center gap-1 md:gap-2">
       <span class="step-num active" id="s1num">1</span>
-      <span class="font-medium text-gray-700" id="s1label">上传素材</span>
+      <span class="font-medium text-gray-700 step-label" id="s1label">上传素材</span>
     </div>
-    <div class="w-12 h-px bg-gray-200"></div>
-    <div class="flex items-center gap-2">
+    <div class="w-8 md:w-12 h-px bg-gray-200"></div>
+    <div class="flex items-center gap-1 md:gap-2">
       <span class="step-num pending" id="s2num">2</span>
-      <span class="text-gray-400" id="s2label">告诉AI怎么做</span>
+      <span class="text-gray-400 step-label" id="s2label">告诉AI怎么做</span>
     </div>
-    <div class="w-12 h-px bg-gray-200"></div>
-    <div class="flex items-center gap-2">
+    <div class="w-8 md:w-12 h-px bg-gray-200"></div>
+    <div class="flex items-center gap-1 md:gap-2">
       <span class="step-num pending" id="s3num">3</span>
-      <span class="text-gray-400" id="s3label">下载成果</span>
+      <span class="text-gray-400 step-label" id="s3label">下载成果</span>
     </div>
   </div>
 
   <!-- ═══ Content ═══ -->
-  <div class="grid grid-cols-3 gap-6">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
 
     <!-- ─────── Step 1: Upload ─────── -->
-    <div class="glass rounded-3xl p-6" id="step1">
+    <div class="glass rounded-2xl md:rounded-3xl p-4 md:p-6" id="step1">
       <p class="font-semibold text-gray-800 mb-4">① 上传图片素材</p>
 
       <div class="upload-zone" id="uploadZone">
@@ -96,23 +114,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-
       </div>
 
       <!-- Logo -->
-      <div class="mt-5 pt-4 border-t border-gray-100">
+      <div class="mt-4 md:mt-5 pt-4 border-t border-gray-100">
         <p class="text-xs font-medium text-gray-500 mb-2">品牌水印（可选）</p>
-        <div class="flex items-center gap-3">
-          <div id="logoPreview" class="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-sm text-gray-400 flex-shrink-0">Logo</div>
-          <div class="flex-1">
-            <p class="text-xs text-gray-600" id="logoName">未上传</p>
-            <p class="text-xs text-gray-400">建议透明PNG，将缩放至合适大小</p>
+        <div class="flex items-center gap-2 md:gap-3">
+          <div id="logoPreview" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gray-100 flex items-center justify-center text-sm text-gray-400 flex-shrink-0 overflow-hidden">Logo</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs text-gray-600 truncate" id="logoName">未上传</p>
+            <p class="text-xs text-gray-400 truncate">建议透明PNG</p>
           </div>
-          <button class="px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 text-gray-600" id="logoUploadBtn">上传</button>
+          <button class="px-2.5 md:px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 text-gray-600 shrink-0" id="logoUploadBtn">上传</button>
           <input type="file" id="logoInput" accept="image/png,image/jpeg" class="hidden">
-          <button id="removeLogo" class="text-xs text-red-400 hover:text-red-500 hidden">删除</button>
+          <button id="removeLogo" class="text-xs text-red-400 hover:text-red-500 hidden shrink-0">删除</button>
         </div>
       </div>
     </div>
 
     <!-- ─────── Step 2: Command ─────── -->
-    <div class="glass rounded-3xl p-6 opacity-50 pointer-events-none" id="step2">
+    <div class="glass rounded-2xl md:rounded-3xl p-4 md:p-6 opacity-50 pointer-events-none" id="step2">
       <p class="font-semibold text-gray-800 mb-4">② 告诉AI怎么做</p>
 
       <!-- Quick templates -->
@@ -149,8 +167,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-
 
       <!-- Settings -->
       <div class="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-gray-100 mb-3">
-        <span class="text-sm">📐</span>
-        <span class="text-xs text-gray-600">尺寸预设</span>
+        <span class="text-sm shrink-0">📐</span>
+        <span class="text-xs text-gray-600 shrink-0">尺寸预设</span>
         <select id="sizePreset" class="ml-auto text-xs border border-gray-200 rounded-lg px-2 py-1 text-gray-600 bg-white">
           <option value="">不调整</option>
           <option value="800x800">淘宝 800×800</option>
@@ -168,9 +186,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-
 
       <!-- Watermark position -->
       <div class="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-gray-100 mb-3">
-        <span class="text-sm">📍</span>
-        <span class="text-xs text-gray-600">水印位置</span>
-        <div class="ml-auto flex gap-1.5" id="posSelector">
+        <span class="text-sm shrink-0">📍</span>
+        <span class="text-xs text-gray-600 shrink-0">水印位置</span>
+        <div class="flex gap-1.5 pos-wrap" id="posSelector">
           <button class="pos-btn active" data-pos="top-left">↖ 左上</button>
           <button class="pos-btn" data-pos="top-right">↗ 右上</button>
           <button class="pos-btn" data-pos="bottom-right">↘ 右下</button>
@@ -184,14 +202,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-
     </div>
 
     <!-- ─────── Step 3: Results ─────── -->
-    <div class="glass rounded-3xl p-6 opacity-50 pointer-events-none" id="step3">
+    <div class="glass rounded-2xl md:rounded-3xl p-4 md:p-6 opacity-50 pointer-events-none" id="step3">
       <div class="flex items-center justify-between mb-4">
         <p class="font-semibold text-gray-800">③ 下载成果</p>
         <span id="statusBadge" class="hidden text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">等待处理</span>
       </div>
 
       <!-- Loading -->
-      <div id="loadingState" class="hidden flex flex-col items-center gap-3 py-12">
+      <div id="loadingState" class="hidden flex flex-col items-center gap-3 py-8 md:py-12">
         <div class="spinner"></div>
         <p class="text-sm text-gray-500">AI 正在处理你的图片...</p>
         <p class="text-xs text-gray-400" id="progressText">准备中</p>
@@ -201,7 +219,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-
       <div id="resultsGrid" class="hidden grid grid-cols-2 gap-3"></div>
 
       <!-- Empty state -->
-      <div id="emptyState" class="flex flex-col items-center gap-2 py-12 text-gray-400">
+      <div id="emptyState" class="flex flex-col items-center gap-2 py-8 md:py-12 text-gray-400">
         <p class="text-4xl">🖼</p>
         <p class="text-sm">完成第①②步后，结果将显示在这里</p>
         <p class="text-xs">支持批量处理，一键下载ZIP</p>
