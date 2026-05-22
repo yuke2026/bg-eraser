@@ -367,31 +367,42 @@ logoInput.addEventListener('change', () => {
 removeLogo.onclick = () => {
   logoFile = null;
   logoInput.value = '';
-  // 如果存在默认LOGO，回退到默认
   if (useDefaultLogo) {
+    // 移除默认LOGO → 完全禁用
+    useDefaultLogo = false;
+    logoPreview.innerHTML = '🚫';
+    logoPreview.className = 'w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gray-100 flex items-center justify-center text-xs text-gray-400 flex-shrink-0 overflow-hidden';
+    logoName.textContent = '水印已移除';
+    removeLogo.textContent = '恢复默认';
+  } else if (logoPreview.innerHTML.includes('🚫')) {
+    // 恢复默认LOGO
+    useDefaultLogo = true;
     logoPreview.innerHTML = `<img src="${API_BASE}/api/v2/default_logo" class="w-full h-full rounded-xl object-cover">`;
+    logoPreview.className = 'w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gray-100 flex items-center justify-center text-sm text-gray-400 flex-shrink-0 overflow-hidden';
     logoName.textContent = '默认LOGO ✓';
     removeLogo.textContent = '移除';
   } else {
-    // 检查服务器是否有默认LOGO
+    // 删除上传的自定义LOGO → 回退到默认
     fetch(`${API_BASE}/api/v2/default_logo/status`).then(r => r.json()).then(data => {
       if (data.exists) {
         useDefaultLogo = true;
         logoPreview.innerHTML = `<img src="${API_BASE}/api/v2/default_logo" class="w-full h-full rounded-xl object-cover">`;
+        logoPreview.className = 'w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gray-100 flex items-center justify-center text-sm text-gray-400 flex-shrink-0 overflow-hidden';
         logoName.textContent = '默认LOGO ✓';
         removeLogo.textContent = '移除';
       } else {
-        logoPreview.innerHTML = 'Logo';
-        logoName.textContent = '未上传';
-        removeLogo.classList.add('hidden');
+        _resetLogoUI();
       }
-    }).catch(() => {
-      logoPreview.innerHTML = 'Logo';
-      logoName.textContent = '未上传';
-      removeLogo.classList.add('hidden');
-    });
+    }).catch(() => _resetLogoUI());
   }
 };
+
+function _resetLogoUI() {
+  logoPreview.innerHTML = 'Logo';
+  logoPreview.className = 'w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gray-100 flex items-center justify-center text-sm text-gray-400 flex-shrink-0 overflow-hidden';
+  logoName.textContent = '未上传';
+  removeLogo.classList.add('hidden');
+}
 
 // Quick commands — 点击填入输入框
 document.querySelectorAll('.quick-cmd').forEach(el => {
