@@ -196,7 +196,7 @@ def analyze_reference(image_bytes: bytes, prompt: str) -> dict:
             "对比度": contrast_label,
             "构图": comp_label,
             "尺寸": f"{w}×{h}",
-            "prompt_enhancement": _build_enhanced_prompt(prompt, {
+            "prompt_enhancement": _build_scene_prompt(prompt, {
                 "color": color_name,
                 "brightness": brightness_label,
                 "contrast": contrast_label,
@@ -228,7 +228,7 @@ def _color_name(rgb: np.ndarray) -> str:
     return "中性色调"
 
 
-def _build_enhanced_prompt(original: str, analysis: dict) -> str:
+def _build_scene_prompt(original: str, analysis: dict) -> str:
     """根据分析结果增强 prompt"""
     parts = [original]
 
@@ -422,69 +422,62 @@ def _composite_render(product_bytes: bytes, prompt: str,
 
 def analyze_and_render(image_bytes: Optional[bytes], prompt: str,
                        width: int = 1024, height: int = 1024) -> dict:
-    """分析参考图 → 增强 prompt → 提交渲染
+    """分析参考图 → 构建场景prompt → img2img 渲染
 
-    核心思路（V2.3 重构）：
-    - 有参考图时：rembg 抠出商品 → AI 生成场景背景 → 合成（商品像素级保真）
-    - 无参考图时：直接文生图
+    有参考图时：用 AI 图生图（img2img），传原图作为参考 + strength 控强度
+    无参考图时：直接文生图
     """
     # Step 1: 分析参考图（如果有）
     analysis = {}
-    enhanced_prompt = prompt
+    scene_prompt = prompt
 
     if image_bytes:
         logger.info("分析参考图中...")
         analysis = analyze_reference(image_bytes, prompt)
-        enhanced_prompt = analysis.get("prompt_enhancement", prompt)
+
+        # 构建场景 prompt：强调保留商品原样，只改变背景/场景
+        # 这是 key：AI 需要明确指令「商品不变，只换场景」
+        scene_prompt = (
+            f"产品照片。完全保留产品的形状、轮廓和细节不变，只改变背景和环境。"
+            f"场景描述：{prompt}"
+        )
     else:
         logger.info("无参考图，直接使用用户prompt进行文生图")
-        # 给纯文生图加一些基本质量修饰
         qualifiers = ["专业产品摄影", "高清细节", "柔和自然光"]
         has_qualifier = any(q in prompt for q in ["高清", "细节", "专业", "摄影"])
         if not has_qualifier:
-            enhanced_prompt = prompt + "，专业产品摄影，高清细节，柔和自然光"
-        else:
-            enhanced_prompt = prompt
+            scene_prompt = prompt + "，专业产品摄影，高清细节，柔和自然光"
 
-    logger.info(f"增强prompt: {enhanced_prompt}")
+    logger.info(f"场景prompt: {scene_prompt[:120]}")
 
-    # Step 3: 渲染（合成方案 — 商品像素级保真）
+    # Step 2: 提交渲染任务（img2img 或 文生图）
     task_id = hashlib.md5(f"{time.time()}{prompt}".encode()).hexdigest()[:12]
 
     task = task_store.create(
         task_id=task_id,
-        prompt=enhanced_prompt,
+        prompt=scene_prompt,
         size=(width, height),
         ref_image=image_bytes,
     )
 
     # 尝试渲染
     try:
-        if image_bytes:
-            # 合成方案：rembg 抠商品 → AI 生背景 → 合成
-            result_bytes = _composite_render(
-                product_bytes=image_bytes,
-                prompt=enhanced_prompt,
-                size=(width, height),
-            )
-        else:
-            # 纯文生图（无参考图）
-            result_bytes = _generate_image(
-                prompt=enhanced_prompt,
-                size=(width, height),
-                ref_image_bytes=None,
-                model=DEFAULT_MODEL,
-            )
+        result_bytes = _generate_image(
+            prompt=scene_prompt,
+            size=(width, height),
+            ref_image_bytes=image_bytes,
+            model=DEFAULT_MODEL,
+        )
         task_store.update(task_id,
                           status="completed",
-                          enhanced_prompt=enhanced_prompt,
+                          scene_prompt=scene_prompt,
                           result_bytes=result_bytes,
                           analysis=analysis)
     except RuntimeError as e:
         if "SILICONFLOW_API_KEY" in str(e):
             # API Key 未配置
             task_store.update(task_id, status="no_api_key",
-                              enhanced_prompt=enhanced_prompt,
+                              scene_prompt=scene_prompt,
                               analysis=analysis,
                               error=str(e))
         else:
@@ -492,14 +485,14 @@ def analyze_and_render(image_bytes: Optional[bytes], prompt: str,
             try:
                 logger.warning(f"模型 {DEFAULT_MODEL} 失败，尝试备选模型 {ALT_MODEL}: {e}")
                 result_bytes = _generate_image(
-                    prompt=enhanced_prompt,
+                    prompt=scene_prompt,
                     size=(width, height),
                     ref_image_bytes=image_bytes,
                     model=ALT_MODEL,
                 )
                 task_store.update(task_id,
                                   status="completed",
-                                  enhanced_prompt=enhanced_prompt,
+                                  scene_prompt=scene_prompt,
                                   result_bytes=result_bytes,
                                   analysis=analysis)
             except Exception as e2:
@@ -524,7 +517,7 @@ def poll_render_status(task_id: str) -> dict:
     result = {
         "task_id": task_id,
         "status": task["status"],
-        "enhanced_prompt": task.get("enhanced_prompt", ""),
+        "scene_prompt": task.get("scene_prompt", ""),
         "progress": 100 if task["status"] == "completed" else 0,
         "error": task.get("error"),
         "elapsed": max(elapsed, 0),

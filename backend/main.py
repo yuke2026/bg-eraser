@@ -372,7 +372,7 @@ async def render_analyze(
             "task_id": result["id"],
             "status": result["status"],
             "analysis": result.get("analysis", {}),
-            "enhanced_prompt": result.get("enhanced_prompt", prompt),
+            "scene_prompt": result.get("scene_prompt", prompt),
             "total_time": _fmt_time(result.get("updated_at", 0) - result.get("created_at", 0)),
         }
         # 如果同步完成，直接提供下载
@@ -400,7 +400,7 @@ async def render_status(task_id: str):
     resp = {
         "task_id": task_id,
         "status": result["status"],
-        "enhanced_prompt": result.get("enhanced_prompt", ""),
+        "scene_prompt": result.get("scene_prompt", ""),
         "progress": result.get("progress", 0),
         "error": result.get("error"),
         "total_time": _fmt_time(result.get("elapsed", 0)),
@@ -430,7 +430,7 @@ async def render_jobs_list():
     return JSONResponse([{
         "id": j["id"],
         "status": j["status"],
-        "prompt": j.get("enhanced_prompt", j["prompt"])[:80],
+        "prompt": j.get("scene_prompt", j["prompt"])[:80],
         "size": j["size"],
         "error": j.get("error"),
     } for j in jobs[-20:]])  # 最近 20 条
