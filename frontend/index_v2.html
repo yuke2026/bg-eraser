@@ -338,19 +338,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-
             </div>
           </div>
 
-          <div id="renderResult" class="hidden mb-3">
-            <p class="text-xs font-medium text-gray-500 mb-2">✨ 渲染结果</p>
-            <img id="renderResultImg" class="w-full rounded-xl border border-gray-100 object-contain bg-gray-50" style="max-height:300px;">
-          </div>
-
-          <div class="flex gap-2">
-            <button id="renderGenBtn" class="flex-1 py-2.5 bg-violet-500 text-white text-sm font-medium rounded-xl hover:bg-violet-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-              <span>🚀</span> 开始渲染
-            </button>
-            <button id="renderDownloadBtn" class="flex-1 py-2.5 bg-emerald-500 text-white text-sm font-medium rounded-xl hover:bg-emerald-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hidden">
-              <span>📥</span> 下载结果
-            </button>
-          </div>
+          <button id="renderGenBtn" class="w-full py-2.5 bg-violet-500 text-white text-sm font-medium rounded-xl hover:bg-violet-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            <span>🚀</span> 开始渲染
+          </button>
         </div>
       </div>
     </div>
@@ -1306,7 +1296,7 @@ resetBtn.addEventListener('click', () => location.reload());
 })();
 
 // ═══════════════════════════════════════════════════
-//  商品渲染模式
+//  商品渲染模式 — 结果推送 Step 3
 // ═══════════════════════════════════════════════════
 let renderFile = null;
 let renderTaskId = null;
@@ -1323,10 +1313,7 @@ const renderAnalysisContent = document.getElementById('renderAnalysisContent');
 const renderProgress = document.getElementById('renderProgress');
 const renderProgressText = document.getElementById('renderProgressText');
 const renderProgressBar = document.getElementById('renderProgressBar');
-const renderResult = document.getElementById('renderResult');
-const renderResultImg = document.getElementById('renderResultImg');
 const renderGenBtn = document.getElementById('renderGenBtn');
-const renderDownloadBtn = document.getElementById('renderDownloadBtn');
 
 // Upload reference image
 renderUpload.addEventListener('click', () => {
@@ -1375,7 +1362,7 @@ document.querySelectorAll('.render-quick').forEach(btn => {
   });
 });
 
-// Generate
+// Generate & push to Step 3
 renderGenBtn.addEventListener('click', async () => {
   const prompt = renderPrompt.value.trim();
   if (!prompt) {
@@ -1383,21 +1370,30 @@ renderGenBtn.addEventListener('click', async () => {
     return;
   }
 
-  // Reset UI
+  // Reset Step 3 UI
+  loadingState.classList.remove('hidden');
+  resultsGrid.classList.add('hidden');
+  downloadArea.classList.add('hidden');
+  emptyState.classList.add('hidden');
+  statusBadge.classList.remove('hidden');
+  statusBadge.textContent = '⏳ 渲染中';
+  statusBadge.className = 'text-xs bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-medium';
+  progressText.textContent = '正在提交渲染任务...';
+  window._lastDownloadId = null;
+
+  // Reset Step 2 render UI
   renderAnalysis.classList.add('hidden');
   renderProgress.classList.remove('hidden');
   renderProgressText.textContent = renderFile ? '正在分析参考图...' : '正在生成渲染图...';
   renderProgressBar.style.width = '10%';
   renderGenBtn.disabled = true;
-  renderResult.classList.add('hidden');
-  renderDownloadBtn.classList.add('hidden');
 
   // Parse size
   const size = renderSize.value.split('x').map(Number);
   const [width, height] = size;
 
   try {
-    // Step 1: Submit
+    // Submit
     const form = new FormData();
     if (renderFile) {
       form.append('file', renderFile);
@@ -1414,6 +1410,7 @@ renderGenBtn.addEventListener('click', async () => {
 
     renderTaskId = data.task_id;
     renderProgressBar.style.width = '20%';
+    progressText.textContent = 'AI 正在生成渲染图...';
 
     // Show analysis
     if (data.analysis && Object.keys(data.analysis).length > 0) {
@@ -1432,23 +1429,75 @@ renderGenBtn.addEventListener('click', async () => {
 
     renderProgressText.textContent = data.status === 'no_api_key'
       ? '⚠️ AI渲染需要配置API Key'
-      : '已提交渲染任务，正在等待AI生成...';
+      : '已提交渲染任务，正在等待...';
     renderProgressBar.style.width = data.status === 'no_api_key' ? '100%' : '30%';
 
-    // Step 2: Poll for status (if no API key configured, show what we have)
     if (data.status === 'no_api_key') {
+      renderGenBtn.disabled = false;
+      loadingState.classList.add('hidden');
+      statusBadge.textContent = '❌ API Key 未配置';
+      statusBadge.className = 'text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium';
+      return;
+    }
+
+    // If sync-completed, show result in Step 3 immediately
+    if (data.status === 'completed' && data.download_id) {
+      _showRenderResultInStep3(data, prompt);
+      renderProgress.classList.add('hidden');
       renderGenBtn.disabled = false;
       return;
     }
 
+    // Otherwise start polling
     startRenderPolling();
 
   } catch (err) {
     renderProgress.classList.add('hidden');
     renderGenBtn.disabled = false;
-    alert(`渲染失败: ${err.message}`);
+    loadingState.classList.add('hidden');
+    statusBadge.textContent = '❌ 渲染失败';
+    statusBadge.className = 'text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium';
+    emptyState.innerHTML = `
+      <p class="text-4xl">😅</p>
+      <p class="text-sm text-gray-500">渲染失败: ${err.message}</p>
+      <button onclick="location.reload()" class="mt-2 text-sm text-violet-500 underline">重试</button>
+    `;
+    emptyState.classList.remove('hidden');
   }
 });
+
+// 在 Step 3 展示渲染结果
+function _showRenderResultInStep3(data, prompt) {
+  const previewUrl = data.preview_url;
+  const downloadId = data.download_id;
+
+  // 显示在 Step 3 结果网格
+  resultsGrid.classList.remove('hidden');
+  resultsGrid.innerHTML = `
+    <div class="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm fade-in">
+      <div class="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">
+        <img src="${API_BASE}${previewUrl}" class="w-full h-full object-contain cursor-pointer"
+             onclick="openLightbox('${API_BASE}${previewUrl}')"
+             onerror="this.parentElement.innerHTML='<span class=text-4xl>🖼</span>'">
+      </div>
+      <div class="p-2.5">
+        <p class="text-xs font-medium text-gray-700 truncate">AI渲染: ${prompt.slice(0, 40)}${prompt.length > 40 ? '...' : ''}</p>
+        <p class="text-xs text-gray-400">渲染生成</p>
+      </div>
+    </div>
+  `;
+
+  downloadArea.classList.remove('hidden');
+  resultStats.textContent = `渲染耗时: ${data.total_time || '--'}`;
+  resultCount.textContent = '1/1 成功';
+
+  // 存 download_id 供 ZIP 下载
+  window._lastDownloadId = downloadId || null;
+
+  loadingState.classList.add('hidden');
+  statusBadge.textContent = '✅ 渲染完成';
+  statusBadge.className = 'text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-medium';
+}
 
 function startRenderPolling() {
   if (renderPollTimer) clearInterval(renderPollTimer);
@@ -1467,20 +1516,9 @@ function startRenderPolling() {
         renderProgressBar.style.width = '100%';
         renderProgressText.textContent = '✅ 渲染完成!';
 
-        // Show result
         setTimeout(() => {
           renderProgress.classList.add('hidden');
-          if (data.preview_url) {
-            renderResultImg.src = `${API_BASE}${data.preview_url}`;
-            renderResult.classList.remove('hidden');
-            renderDownloadBtn.classList.remove('hidden');
-            renderDownloadBtn.onclick = () => {
-              const a = document.createElement('a');
-              a.href = renderResultImg.src;
-              a.download = 'render_result.png';
-              a.click();
-            };
-          }
+          _showRenderResultInStep3(data, renderPrompt.value.trim());
           renderGenBtn.disabled = false;
         }, 800);
 
@@ -1490,6 +1528,9 @@ function startRenderPolling() {
         renderProgressText.textContent = `❌ 渲染失败: ${data.error || '未知错误'}`;
         renderProgressBar.style.width = '100%';
         renderGenBtn.disabled = false;
+        loadingState.classList.add('hidden');
+        statusBadge.textContent = '❌ 渲染失败';
+        statusBadge.className = 'text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium';
 
       } else if (data.status === 'processing') {
         renderProgressText.textContent = 'AI 正在生成渲染图...';

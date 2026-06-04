@@ -25,6 +25,15 @@ from backend.render.engine import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("bg-eraser")
 
+def _fmt_time(seconds: float) -> str:
+    """格式化秒数为可读字符串，如 '3.2s'"""
+    if seconds < 0:
+        return "0.0s"
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    return f"{seconds / 60:.0f}m {seconds % 60:.0f}s"
+
+
 app = FastAPI(title="BgEraser API", version="2.0.0")
 
 app.add_middleware(
@@ -364,6 +373,7 @@ async def render_analyze(
             "status": result["status"],
             "analysis": result.get("analysis", {}),
             "enhanced_prompt": result.get("enhanced_prompt", prompt),
+            "total_time": _fmt_time(result.get("updated_at", 0) - result.get("created_at", 0)),
         }
         # 如果同步完成，直接提供下载
         if result.get("result_bytes") and result["status"] == "completed":
@@ -393,6 +403,7 @@ async def render_status(task_id: str):
         "enhanced_prompt": result.get("enhanced_prompt", ""),
         "progress": result.get("progress", 0),
         "error": result.get("error"),
+        "total_time": _fmt_time(result.get("elapsed", 0)),
     }
 
     if result.get("result_bytes"):

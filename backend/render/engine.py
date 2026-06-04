@@ -101,11 +101,14 @@ def _generate_image(prompt: str, size: tuple[int, int],
         "size": f"{width}x{height}",
     }
 
-    # 如果有参考图，尝试 img2img
+    # 如果有参考图，尝试 img2img（低强度保持商品原样）
     if ref_image_bytes:
         # SiliconFlow 支持通过 image 参数传参考图
         img_b64 = base64.b64encode(ref_image_bytes).decode("utf-8")
         body["image"] = f"data:image/png;base64,{img_b64}"
+        # strength: 去噪强度 (0~1)，越低越接近原图
+        # 0.3~0.4 仅换背景/场景，商品形状保持原样
+        body["strength"] = 0.35
 
     resp = requests.post(
         f"{SILICONFLOW_API_BASE}/images/generations",
@@ -330,12 +333,15 @@ def poll_render_status(task_id: str) -> dict:
         return {"status": "not_found"}
 
     # 同步 API 已经返回结果，无需轮询
+    now = time.time()
+    elapsed = (task.get("updated_at") or now) - (task.get("created_at") or now)
     result = {
         "task_id": task_id,
         "status": task["status"],
         "enhanced_prompt": task.get("enhanced_prompt", ""),
         "progress": 100 if task["status"] == "completed" else 0,
         "error": task.get("error"),
+        "elapsed": max(elapsed, 0),
     }
 
     if task.get("result_bytes"):
