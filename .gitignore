@@ -31,3 +31,4 @@ frontend/default_logo.png
 
 # Logs
 *.log
+deploy/backups/
