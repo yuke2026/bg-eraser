@@ -137,56 +137,83 @@ def _generate_scene_background(prompt: str, size: tuple[int, int],
 
 
 def _extract_product_mask(image: Image.Image) -> np.ndarray:
-    """从商品照片中提取前景（商品）mask
+    """使用 rembg（神经网络）提取商品前景 mask
 
-    适用于常见商品摄影（浅色/纯色背景）：
-    1. LAB 色彩空间：背景通常是浅色 (L>90)，商品有丰富颜色
-    2. 自适应阈值 + 形态学去噪
+    rembg 基于 U²-Net 训练，专门用于前景/背景分割，
+    比 LAB 色彩空间规则稳定得多，适用于各种商品摄影类型。
     """
     import cv2
-    arr = np.array(image.convert("RGB"))
 
-    # 转为 LAB 色彩空间 — L 通道区分亮度
-    lab = cv2.cvtColor(arr, cv2.COLOR_RGB2LAB)
-    L = lab[:, :, 0].astype(np.float32)
+    h, w = image.size[1], image.size[0]
+    total_pixels = h * w
 
-    # Otsu 自动找分割阈值（亮度）
-    L_uint8 = L.astype(np.uint8)
-    _, mask_bg = cv2.threshold(L_uint8, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    product_mask = 255 - mask_bg  # 反转：商品 = 暗区
+    try:
+        from rembg import remove, new_session
 
-    # 饱和度线索：商品有色彩（高饱和度），背景低饱和度
-    a_channel = lab[:, :, 1]
-    b_channel = lab[:, :, 2]
-    sat = np.sqrt(a_channel.astype(np.float32)**2 + b_channel.astype(np.float32)**2)
-    _, sat_bg = cv2.threshold(sat.astype(np.uint8), 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        # 用轻量模型，CPU 也能快速推理
+        session = new_session("u2netp")
+        result = remove(image, session=session)  # 返回 RGBA
+        mask = np.array(result)[:, :, 3]  # alpha = mask
 
-    # 合并亮度+饱和度
-    combined = cv2.bitwise_and(product_mask, sat_bg)
-    if combined.sum() < 1000:
-        combined = product_mask  # 回退到亮度
+        # 检查 rembg 是否真的有输出
+        non_zero = (mask > 128).sum()
+        ratio = non_zero / total_pixels
 
-    # 形态学去噪
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
-    combined = cv2.morphologyEx(combined, cv2.MORPH_OPEN, kernel)
-    combined = cv2.morphologyEx(combined, cv2.MORPH_CLOSE, kernel)
+        if ratio < 0.01 or ratio > 0.99:
+            # 几乎全空或全满 — rembg 可能没识别到商品
+            logger.warning(f"rembg mask 异常 (前景占比 {ratio:.1%})，尝试 fallback")
+            raise ValueError("rembg mask 质量太差")
 
-    # 取最大连通区域（商品主体）
-    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(combined, connectivity=8)
-    if num_labels > 1:
-        areas = [(stats[i, cv2.CC_STAT_AREA], i) for i in range(1, num_labels)]
-        if areas:
-            label = max(areas, key=lambda x: x[0])[1]
-            combined = np.where(labels == label, 255, 0).astype(np.uint8)
+        # 二值化
+        _, mask = cv2.threshold(mask, 128, 255, cv2.THRESH_BINARY)
 
-    # 膨胀让包裹更完整
-    dilate_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    combined = cv2.dilate(combined, dilate_kernel, iterations=1)
+        # 形态学去噪
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
-    # 边缘羽化
-    combined = cv2.GaussianBlur(combined, (15, 15), 3)
+        # 取最大连通组件（排除小噪点）
+        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+        if num_labels > 1:
+            areas = [(stats[i, cv2.CC_STAT_AREA], i) for i in range(1, num_labels)]
+            if areas:
+                main_label = max(areas, key=lambda x: x[0])[1]
+                mask = np.where(labels == main_label, 255, 0).astype(np.uint8)
 
-    return combined
+        # 边缘羽化，让合成更自然
+        mask = cv2.GaussianBlur(mask, (9, 9), 2)
+
+        logger.info(f"rembg mask 提取成功: 前景 {non_zero}/{total_pixels} ({ratio:.1%})")
+        return mask
+
+    except Exception as e:
+        logger.warning(f"rembg mask 提取失败 ({e})，使用 Canny 边缘检测回退")
+
+        # Fallback: 用 Canny 边缘 + 形态学 + 最大连通区域
+        arr = np.array(image.convert("RGB"))
+        gray = cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY)
+
+        # Canny 边缘检测 + 膨胀连通
+        edges = cv2.Canny(gray, 30, 100)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+        closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+
+        # 填充内部空洞
+        mask_filled = closed.copy()
+        cv2.floodFill(mask_filled, None, (0, 0), 0)  # 从左上角填充背景
+        filled = cv2.bitwise_not(cv2.floodFill(mask_filled.copy(), None, (w // 2, h // 2), 255)[1])
+
+        # 如果填充后几乎全满，用高斯差分 (DoG) 替代
+        if filled.sum() > total_pixels * 0.95:
+            blurred1 = cv2.GaussianBlur(gray, (3, 3), 0)
+            blurred2 = cv2.GaussianBlur(gray, (15, 15), 0)
+            dog = cv2.absdiff(blurred1, blurred2)
+            _, filled = cv2.threshold(dog, 15, 255, cv2.THRESH_BINARY)
+            filled = cv2.morphologyEx(filled, cv2.MORPH_CLOSE, kernel)
+
+        mask = cv2.GaussianBlur(filled, (9, 9), 2)
+        logger.warning("使用 Canny/DoG 回退方案提取 mask")
+        return mask
 
 
 def _composite_with_mask(original: Image.Image, background: Image.Image,
