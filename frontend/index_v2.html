@@ -267,21 +267,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-
           <p class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
             <span class="text-lg">🎨</span> AI 商品渲染
           </p>
-          <p class="text-xs text-gray-400 mb-4">上传商品参考图（可选），输入渲染描述，AI自动生成</p>
+          <p class="text-xs text-gray-400 mb-4">在①上传素材中上传商品图片，输入渲染描述，AI自动生成场景效果</p>
 
-          <!-- Reference image -->
+          <!-- Reference image — 自动复用 Step 1 上传的图片 -->
           <div class="mb-3">
-            <p class="text-xs font-medium text-gray-500 mb-2">商品参考图 <span class="text-gray-300">(可选)</span></p>
-            <div id="renderUpload" class="upload-zone rounded-xl p-6 text-center cursor-pointer">
-              <div class="flex flex-col items-center gap-1">
-                <span class="text-2xl">📸</span>
-                <p class="text-xs text-gray-500 mt-1">点击上传参考图</p>
-                <p class="text-xs text-gray-400">或拖拽图片到此处</p>
+            <p class="text-xs font-medium text-gray-500 mb-2">商品参考图</p>
+            <div id="renderRefSection">
+              <!-- 有 Step 1 图片时显示预览 -->
+              <div id="renderRefPreview" class="hidden">
+                <div class="relative rounded-xl overflow-hidden bg-gray-50 mb-2" style="max-height:180px;">
+                  <img id="renderRefImg" class="w-full object-contain" style="max-height:180px;">
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-gray-400" id="renderRefName"></span>
+                  <span class="text-xs text-gray-300">|</span>
+                  <span class="text-xs text-violet-500">✅ 来自①上传素材</span>
+                </div>
               </div>
-            </div>
-            <div id="renderPreviewWrap" class="hidden relative mt-2">
-              <img id="renderPreview" class="w-full rounded-xl object-contain bg-gray-50" style="max-height:180px;">
-              <button id="renderRemoveImg" class="absolute top-2 right-2 w-7 h-7 bg-white/80 rounded-full flex items-center justify-center text-xs text-gray-500 hover:text-red-500">✕</button>
+              <!-- 无 Step 1 图片时提示 -->
+              <div id="renderRefEmpty" class="upload-zone rounded-xl p-5 text-center" style="border-style:solid;border-color:#f0abfc;background:#fdf2ff;">
+                <p class="text-sm text-violet-500">📤 请先在①上传素材中上传商品图片</p>
+                <p class="text-xs text-gray-400 mt-1">渲染模式自动读取 Step 1 的图片作为参考图</p>
+              </div>
             </div>
           </div>
 
@@ -460,6 +467,8 @@ function switchMode(mode) {
   ecomMode.classList.toggle('hidden', mode !== 'ecom');
   watermarkMode.classList.toggle('hidden', mode !== 'watermark');
   renderMode.classList.toggle('hidden', mode !== 'render');
+  // 切换到渲染模式时更新参考图预览
+  if (mode === 'render') _updateRenderRef();
   // Reset process button text
   document.getElementById('processBtn').style.display = mode === 'ecom' ? 'flex' : 'none';
 }
@@ -963,6 +972,7 @@ function addFiles(files) {
   }
   renderFileList();
   updateStep2();
+  document.dispatchEvent(new Event('renderRefUpdate'));
 }
 
 function renderFileList() {
@@ -987,6 +997,7 @@ function renderFileList() {
       uploadedFiles.splice(i, 1);
       renderFileList();
       updateStep2();
+      document.dispatchEvent(new Event('renderRefUpdate'));
     };
     fileThumbs.appendChild(div);
   });
@@ -996,6 +1007,7 @@ clearFiles.onclick = () => {
   uploadedFiles = [];
   renderFileList();
   updateStep2();
+  document.dispatchEvent(new Event('renderRefUpdate'));
 };
 
 // Logo upload
@@ -1296,16 +1308,16 @@ resetBtn.addEventListener('click', () => location.reload());
 })();
 
 // ═══════════════════════════════════════════════════
-//  商品渲染模式 — 结果推送 Step 3
+//  商品渲染模式 — 自动复用 Step 1 图片 + 结果推送 Step 3
 // ═══════════════════════════════════════════════════
-let renderFile = null;
 let renderTaskId = null;
 let renderPollTimer = null;
 
-const renderUpload = document.getElementById('renderUpload');
-const renderPreviewWrap = document.getElementById('renderPreviewWrap');
-const renderPreview = document.getElementById('renderPreview');
-const renderRemoveImg = document.getElementById('renderRemoveImg');
+const renderRefSection = document.getElementById('renderRefSection');
+const renderRefPreview = document.getElementById('renderRefPreview');
+const renderRefEmpty = document.getElementById('renderRefEmpty');
+const renderRefImg = document.getElementById('renderRefImg');
+const renderRefName = document.getElementById('renderRefName');
 const renderPrompt = document.getElementById('renderPrompt');
 const renderSize = document.getElementById('renderSize');
 const renderAnalysis = document.getElementById('renderAnalysis');
@@ -1315,44 +1327,25 @@ const renderProgressText = document.getElementById('renderProgressText');
 const renderProgressBar = document.getElementById('renderProgressBar');
 const renderGenBtn = document.getElementById('renderGenBtn');
 
-// Upload reference image
-renderUpload.addEventListener('click', () => {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/jpeg,image/png,image/webp';
-  input.onchange = () => {
-    if (input.files[0]) {
-      renderFile = input.files[0];
-      renderPreview.src = URL.createObjectURL(renderFile);
-      renderPreviewWrap.classList.remove('hidden');
-      renderUpload.classList.add('hidden');
-    }
-  };
-  input.click();
-});
+// 从 Step 1 获取渲染参考图
+function _updateRenderRef() {
+  if (!renderRefSection || !renderRefPreview || !renderRefEmpty) return;
 
-// Drag & drop
-renderUpload.addEventListener('dragover', (e) => { e.preventDefault(); renderUpload.classList.add('drag-over'); });
-renderUpload.addEventListener('dragleave', () => renderUpload.classList.remove('drag-over'));
-renderUpload.addEventListener('drop', (e) => {
-  e.preventDefault();
-  renderUpload.classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (f && f.type.startsWith('image/')) {
-    renderFile = f;
-    renderPreview.src = URL.createObjectURL(f);
-    renderPreviewWrap.classList.remove('hidden');
-    renderUpload.classList.add('hidden');
+  if (uploadedFiles.length > 0) {
+    const f = uploadedFiles[0];
+    renderRefPreview.classList.remove('hidden');
+    renderRefEmpty.classList.add('hidden');
+    renderRefImg.src = URL.createObjectURL(f);
+    renderRefName.textContent = f.name;
+  } else {
+    renderRefPreview.classList.add('hidden');
+    renderRefEmpty.classList.remove('hidden');
+    renderRefImg.src = '';
   }
-});
+}
 
-// Remove reference image
-renderRemoveImg.addEventListener('click', () => {
-  renderFile = null;
-  renderPreviewWrap.classList.add('hidden');
-  renderUpload.classList.remove('hidden');
-  renderPreview.src = '';
-});
+// 监听 Step 1 文件变化
+document.addEventListener('renderRefUpdate', _updateRenderRef);
 
 // Quick style buttons
 document.querySelectorAll('.render-quick').forEach(btn => {
@@ -1362,13 +1355,16 @@ document.querySelectorAll('.render-quick').forEach(btn => {
   });
 });
 
-// Generate & push to Step 3
+// Generate — 使用 Step 1 的图片作为参考图
 renderGenBtn.addEventListener('click', async () => {
   const prompt = renderPrompt.value.trim();
   if (!prompt) {
     alert('请输入渲染描述');
     return;
   }
+
+  // 检查是否有参考图
+  const refFile = uploadedFiles.length > 0 ? uploadedFiles[0] : null;
 
   // Reset Step 3 UI
   loadingState.classList.remove('hidden');
@@ -1384,7 +1380,7 @@ renderGenBtn.addEventListener('click', async () => {
   // Reset Step 2 render UI
   renderAnalysis.classList.add('hidden');
   renderProgress.classList.remove('hidden');
-  renderProgressText.textContent = renderFile ? '正在分析参考图...' : '正在生成渲染图...';
+  renderProgressText.textContent = refFile ? '正在分析参考图...' : '正在生成渲染图（无参考图，商品不会保留）...';
   renderProgressBar.style.width = '10%';
   renderGenBtn.disabled = true;
 
@@ -1393,10 +1389,9 @@ renderGenBtn.addEventListener('click', async () => {
   const [width, height] = size;
 
   try {
-    // Submit
     const form = new FormData();
-    if (renderFile) {
-      form.append('file', renderFile);
+    if (refFile) {
+      form.append('file', refFile);
     }
     form.append('prompt', prompt);
     form.append('width', width);
@@ -1448,7 +1443,6 @@ renderGenBtn.addEventListener('click', async () => {
       return;
     }
 
-    // Otherwise start polling
     startRenderPolling();
 
   } catch (err) {
