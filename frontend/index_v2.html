@@ -1471,6 +1471,9 @@ function _showRenderResultInStep3(data, prompt) {
   const previewUrl = data.preview_url;
   const downloadId = data.download_id;
 
+  // 激活 Step 3（去掉 pointer-events-none 和半透明）
+  updateStep3();
+
   // 显示在 Step 3 结果网格
   resultsGrid.classList.remove('hidden');
   resultsGrid.innerHTML = `

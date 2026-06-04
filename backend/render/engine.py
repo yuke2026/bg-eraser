@@ -101,13 +101,13 @@ def _generate_image(prompt: str, size: tuple[int, int],
         "size": f"{width}x{height}",
     }
 
-    # 如果有参考图，尝试 img2img（低强度保持商品原样）
+    # 如果有参考图，尝试 img2img
     if ref_image_bytes:
         # SiliconFlow 支持通过 image 参数传参考图
         img_b64 = base64.b64encode(ref_image_bytes).decode("utf-8")
         body["image"] = f"data:image/png;base64,{img_b64}"
         # strength: 去噪强度 (0~1)，越低越接近原图
-        # 0.3~0.4 仅换背景/场景，商品形状保持原样
+        # 注意：合成渲染方案不走 img2img，此分支为后备场景
         body["strength"] = 0.35
 
     resp = requests.post(
@@ -243,13 +243,74 @@ def _build_enhanced_prompt(original: str, analysis: dict) -> str:
     return ", ".join(parts)
 
 
+# ── 合成渲染（商品像素级保真） ──
+
+def _composite_render(product_bytes: bytes, prompt: str,
+                      size: tuple[int, int],
+                      model: str = DEFAULT_MODEL) -> bytes:
+    """rembg 抠出商品 → AI 生成场景背景 → 合成
+
+    保证商品形状完全不变，只换背景/场景。
+    """
+    from io import BytesIO
+    from PIL import Image as PILImage
+    from rembg import remove as remove_bg
+    import numpy as np
+
+    target_w, target_h = size
+
+    # ── Step 1: rembg 抠商品 ──
+    logger.info("合成渲染: 抠图中...")
+    product_rgba = remove_bg(product_bytes)
+    product_img = PILImage.open(BytesIO(product_rgba)).convert("RGBA")
+    pw, ph = product_img.size
+
+    # ── Step 2: AI 生成场景背景 ──
+    logger.info("合成渲染: 生成背景场景中...")
+    bg_bytes = _generate_image(
+        prompt=prompt,
+        size=size,
+        ref_image_bytes=None,  # 不传参考图，纯文生图
+        model=model,
+    )
+    bg_img = PILImage.open(BytesIO(bg_bytes)).convert("RGBA")
+    bg_img = bg_img.resize((target_w, target_h), PILImage.LANCZOS)
+
+    # ── Step 3: 合成 ──
+    # 商品缩放：最长边不超过目标尺寸的 60%（留足够场景空间）
+    max_product_dim = max(pw, ph)
+    scale = min(target_w, target_h) * 0.55 / max_product_dim
+    new_w = max(1, int(pw * scale))
+    new_h = max(1, int(ph * scale))
+    product_scaled = product_img.resize((new_w, new_h), PILImage.LANCZOS)
+
+    # 位置：底部居中（商品坐在背景场景中）
+    x = (target_w - new_w) // 2
+    y = target_h - new_h - int(target_h * 0.08)  # 距底边 8%
+
+    # 如有必要，将商品限制在合理范围内
+    x = max(0, x)
+    y = max(0, y)
+
+    # 合成（保留商品的 alpha 通道）
+    bg_img.paste(product_scaled, (x, y), product_scaled)
+
+    # ── Step 4: 输出 ──
+    out = BytesIO()
+    bg_img.save(out, format="PNG")
+    logger.info(f"合成渲染完成: {new_w}x{new_h} 商品合成到 {target_w}x{target_h} 背景")
+    return out.getvalue()
+
+
 # ── 处理步骤 ──
 
 def analyze_and_render(image_bytes: Optional[bytes], prompt: str,
                        width: int = 1024, height: int = 1024) -> dict:
     """分析参考图 → 增强 prompt → 提交渲染
 
-    如果没有参考图 (image_bytes=None)，直接文生图
+    核心思路（V2.3 重构）：
+    - 有参考图时：rembg 抠出商品 → AI 生成场景背景 → 合成（商品像素级保真）
+    - 无参考图时：直接文生图
     """
     # Step 1: 分析参考图（如果有）
     analysis = {}
@@ -271,7 +332,7 @@ def analyze_and_render(image_bytes: Optional[bytes], prompt: str,
 
     logger.info(f"增强prompt: {enhanced_prompt}")
 
-    # Step 3: 提交渲染任务
+    # Step 3: 渲染（合成方案 — 商品像素级保真）
     task_id = hashlib.md5(f"{time.time()}{prompt}".encode()).hexdigest()[:12]
 
     task = task_store.create(
@@ -281,14 +342,23 @@ def analyze_and_render(image_bytes: Optional[bytes], prompt: str,
         ref_image=image_bytes,
     )
 
-    # 尝试调用 SiliconFlow API 生成图片
+    # 尝试渲染
     try:
-        result_bytes = _generate_image(
-            prompt=enhanced_prompt,
-            size=(width, height),
-            ref_image_bytes=image_bytes,
-            model=DEFAULT_MODEL,
-        )
+        if image_bytes:
+            # 合成方案：rembg 抠商品 → AI 生背景 → 合成
+            result_bytes = _composite_render(
+                product_bytes=image_bytes,
+                prompt=enhanced_prompt,
+                size=(width, height),
+            )
+        else:
+            # 纯文生图（无参考图）
+            result_bytes = _generate_image(
+                prompt=enhanced_prompt,
+                size=(width, height),
+                ref_image_bytes=None,
+                model=DEFAULT_MODEL,
+            )
         task_store.update(task_id,
                           status="completed",
                           enhanced_prompt=enhanced_prompt,
