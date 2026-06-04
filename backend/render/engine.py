@@ -245,41 +245,159 @@ def _build_enhanced_prompt(original: str, analysis: dict) -> str:
 
 # ── 合成渲染（商品像素级保真） ──
 
+# 共享 rembg session（模块级，只初始化一次）
+_rembg_session = None
+
+def _get_rembg_session():
+    global _rembg_session
+    if _rembg_session is None:
+        from rembg import new_session
+        logger.info("初始化 rembg session (u2net)...")
+        _rembg_session = new_session("u2net")
+    return _rembg_session
+
+
+def _extract_product_rembg(image_bytes: bytes) -> Optional[Image.Image]:
+    """使用 rembg 提取商品，返回 RGBA PIL Image 或 None"""
+    from rembg import remove as remove_bg
+    try:
+        session = _get_rembg_session()
+        rgba_bytes = remove_bg(image_bytes, session=session)
+        img = Image.open(io.BytesIO(rgba_bytes)).convert("RGBA")
+
+        # 检查提取质量：如果 alpha 通道几乎全透明或全不透明，说明抠图失败
+        arr = np.array(img)
+        alpha = arr[:, :, 3]
+        transparent_ratio = (alpha < 10).mean()
+        opaque_ratio = (alpha > 245).mean()
+
+        # 全透明=没有商品, 全不透明=没抠出来
+        if transparent_ratio > 0.95 or opaque_ratio > 0.95:
+            logger.warning(f"rembg 提取质量不佳 (透明:{transparent_ratio:.1%}, 不透明:{opaque_ratio:.1%})")
+            return None
+
+        # 裁剪透明边距，让商品紧凑
+        non_empty = np.argwhere(alpha > 10)
+        if len(non_empty) == 0:
+            return None
+        y1, x1 = non_empty.min(axis=0)
+        y2, x2 = non_empty.max(axis=0) + 1
+        img = img.crop((x1, y1, x2, y2))
+
+        logger.info(f"rembg 提取成功: 商品区域 {x2-x1}x{y2-y1}")
+        return img
+    except Exception as e:
+        logger.warning(f"rembg 提取失败: {e}")
+        return None
+
+
+def _extract_product_grabcut(image: Image.Image) -> Optional[Image.Image]:
+    """使用 OpenCV GrabCut 提取商品（作为 rembg 的 fallback）
+
+    假设商品大致居中，用中心矩形初始化 GrabCut。
+    """
+    import cv2
+
+    try:
+        arr = np.array(image.convert("RGB"))
+        h, w = arr.shape[:2]
+
+        # 初始矩形：缩小到中央 70% 区域，假设商品居中
+        margin_x = int(w * 0.15)
+        margin_y = int(h * 0.15)
+        rect = (margin_x, margin_y, w - 2 * margin_x, h - 2 * margin_y)
+
+        mask = np.zeros(arr.shape[:2], np.uint8)
+        bg_model = np.zeros((1, 65), np.float64)
+        fg_model = np.zeros((1, 65), np.float64)
+
+        cv2.grabCut(arr, mask, rect, bg_model, fg_model, 5, cv2.GC_INIT_WITH_RECT)
+
+        # 前景 + 可能前景 = 商品
+        product_mask = np.where((mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD), 255, 0).astype(np.uint8)
+
+        # 形态学开闭运算去除噪点
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        product_mask = cv2.morphologyEx(product_mask, cv2.MORPH_CLOSE, kernel)
+        product_mask = cv2.morphologyEx(product_mask, cv2.MORPH_OPEN, kernel)
+
+        # 检查是否有有效区域
+        if product_mask.sum() < 100:
+            logger.warning("GrabCut 未找到有效商品区域")
+            return None
+
+        # 提取 RGBA
+        rgba = image.convert("RGBA")
+        rgba_arr = np.array(rgba)
+        rgba_arr[:, :, 3] = product_mask
+        result = Image.fromarray(rgba_arr)
+
+        # 裁剪透明边距
+        non_empty = np.argwhere(product_mask > 10)
+        if len(non_empty) == 0:
+            return None
+        y1, x1 = non_empty.min(axis=0)
+        y2, x2 = non_empty.max(axis=0) + 1
+        result = result.crop((x1, y1, x2, y2))
+
+        logger.info(f"GrabCut 提取成功: 商品区域 {x2-x1}x{y2-y1}")
+        return result
+    except Exception as e:
+        logger.warning(f"GrabCut 提取失败: {e}")
+        return None
+
+
 def _composite_render(product_bytes: bytes, prompt: str,
                       size: tuple[int, int],
                       model: str = DEFAULT_MODEL) -> bytes:
-    """rembg 抠出商品 → AI 生成场景背景 → 合成
+    """合成渲染：提取商品 → AI 生成场景背景 → 合成
 
     保证商品形状完全不变，只换背景/场景。
+    使用 rembg + GrabCut 双重提取策略。
     """
-    from io import BytesIO
     from PIL import Image as PILImage
-    from rembg import remove as remove_bg
-    import numpy as np
 
     target_w, target_h = size
 
-    # ── Step 1: rembg 抠商品 ──
-    logger.info("合成渲染: 抠图中...")
-    product_rgba = remove_bg(product_bytes)
-    product_img = PILImage.open(BytesIO(product_rgba)).convert("RGBA")
+    # ── Step 1: 提取商品（rembg → GrabCut 双重保底） ──
+    logger.info("合成渲染: 提取商品中...")
+    product_img = _extract_product_rembg(product_bytes)
+    if product_img is None:
+        logger.info("rembg 失败，尝试 GrabCut...")
+        orig = PILImage.open(io.BytesIO(product_bytes))
+        product_img = _extract_product_grabcut(orig)
+
+    if product_img is None:
+        # 双重失败，回退：用整张图做中心裁剪，直接当商品
+        logger.warning("双重提取失败，回退到中心裁剪方案")
+        orig = PILImage.open(io.BytesIO(product_bytes)).convert("RGBA")
+        cw, ch = orig.size
+        # 取中央 80% 区域
+        cx, cy = cw // 2, ch // 2
+        crop_size = min(cw, ch) // 2
+        product_img = orig.crop((
+            max(0, cx - crop_size), max(0, cy - crop_size),
+            min(cw, cx + crop_size), min(ch, cy + crop_size)
+        ))
+
     pw, ph = product_img.size
+    logger.info(f"商品提取完成: {pw}x{ph}")
 
     # ── Step 2: AI 生成场景背景 ──
     logger.info("合成渲染: 生成背景场景中...")
     bg_bytes = _generate_image(
         prompt=prompt,
         size=size,
-        ref_image_bytes=None,  # 不传参考图，纯文生图
+        ref_image_bytes=None,
         model=model,
     )
-    bg_img = PILImage.open(BytesIO(bg_bytes)).convert("RGBA")
+    bg_img = PILImage.open(io.BytesIO(bg_bytes)).convert("RGBA")
     bg_img = bg_img.resize((target_w, target_h), PILImage.LANCZOS)
 
     # ── Step 3: 合成 ──
-    # 商品缩放：最长边不超过目标尺寸的 60%（留足够场景空间）
+    # 商品缩放：最长边不超过目标尺寸的 50%（留足够场景空间）
     max_product_dim = max(pw, ph)
-    scale = min(target_w, target_h) * 0.55 / max_product_dim
+    scale = min(target_w, target_h) * 0.50 / max_product_dim
     new_w = max(1, int(pw * scale))
     new_h = max(1, int(ph * scale))
     product_scaled = product_img.resize((new_w, new_h), PILImage.LANCZOS)
@@ -287,8 +405,6 @@ def _composite_render(product_bytes: bytes, prompt: str,
     # 位置：底部居中（商品坐在背景场景中）
     x = (target_w - new_w) // 2
     y = target_h - new_h - int(target_h * 0.08)  # 距底边 8%
-
-    # 如有必要，将商品限制在合理范围内
     x = max(0, x)
     y = max(0, y)
 
@@ -296,9 +412,9 @@ def _composite_render(product_bytes: bytes, prompt: str,
     bg_img.paste(product_scaled, (x, y), product_scaled)
 
     # ── Step 4: 输出 ──
-    out = BytesIO()
+    out = io.BytesIO()
     bg_img.save(out, format="PNG")
-    logger.info(f"合成渲染完成: {new_w}x{new_h} 商品合成到 {target_w}x{target_h} 背景")
+    logger.info(f"合成渲染完成: 商品 {new_w}x{new_h} → 背景 {target_w}x{target_h}")
     return out.getvalue()
 
 
