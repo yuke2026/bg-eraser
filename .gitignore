@@ -21,3 +21,13 @@ Thumbs.db
 # rembg model cache
 ~/.u2net/
 frontend/bg-eraser-skill.md
+
+# Environment (API keys)
+.env
+.env.*
+
+# User uploads & generated data
+frontend/default_logo.png
+
+# Logs
+*.log

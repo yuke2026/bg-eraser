@@ -6,12 +6,20 @@ from fastapi.responses import Response, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from rembg import remove, new_session
 from PIL import Image
-import io, os, logging, time, uuid
+import io, os, logging, time, uuid, json
+from typing import Optional
 
 from backend.nlu.parser import parse_prompt, get_templates_list, get_template
 from backend.processor.engine import (
     process_batch, create_zip,
     remove_background, change_bg_color as engine_change_bg,
+)
+from backend.processor.watermark_remover import (
+    detect_watermarks, remove_watermark_by_rect, remove_watermarks_auto,
+    find_watermark_by_text, _erase_watermarks_batch,
+)
+from backend.render.engine import (
+    analyze_and_render, poll_render_status, task_store,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -196,6 +204,225 @@ async def v2_download(download_id: str):
             "Content-Length": str(len(zip_bytes)),
         },
     )
+
+
+# ═══════════════════════════════════════════════════
+# 水印检测 + 移除 API
+# ═══════════════════════════════════════════════════
+
+@app.post("/api/v2/detect-watermark")
+async def v2_detect_watermark(file: UploadFile = File(...)):
+    """自动检测图片中的水印区域"""
+    data = _validate_and_read(file)
+    logger.info(f"detect-watermark: {file.filename}")
+    try:
+        result = detect_watermarks(data)
+        return JSONResponse({
+            "filename": file.filename,
+            "count": result["count"],
+            "regions": result["regions"],
+        })
+    except Exception as e:
+        logger.exception("detect-watermark failed")
+        raise HTTPException(500, f"检测失败: {e}")
+
+
+@app.post("/api/v2/remove-watermark")
+async def v2_remove_watermark(
+    file: UploadFile = File(...),
+    x: int = Form(0),
+    y: int = Form(0),
+    w: int = Form(0),
+    h: int = Form(0),
+    auto: bool = Form(True),
+    exclude_regions: str = Form(""),
+    regions: str = Form(""),
+):
+    """去除水印
+
+    - auto=true: 自动检测并去除所有水印
+    - auto=false: 使用 x,y,w,h 指定的矩形区域
+    - exclude_regions: JSON 字符串，要排除的区域 [{x,y,w,h},...]
+    - regions: JSON 字符串，用户调整后的精确区域 [{x,y,w,h},...]（优先级最高，跳过自动检测）
+    """
+    data = _validate_and_read(file)
+    logger.info(f"remove-watermark: {file.filename}, auto={auto}")
+
+    # 如果前端传了精确区域（用户调整后的坐标），直接用它们
+    user_regions = []
+    if regions:
+        try:
+            raw = json.loads(regions)
+            # 确保坐标为整数（前端拖拽可能产生浮点数）
+            user_regions = [
+                {k: int(v) for k, v in r.items() if k in ('x', 'y', 'w', 'h')}
+                for r in raw
+            ]
+        except json.JSONDecodeError:
+            pass
+
+    exclude = []
+    if exclude_regions:
+        try:
+            exclude = json.loads(exclude_regions)
+        except json.JSONDecodeError:
+            pass
+
+    try:
+        if user_regions:
+            # 用户手动调整过的精确区域，直接擦除
+            result_bytes = _erase_watermarks_batch(data, user_regions)
+            regions_out = user_regions
+        elif auto:
+            result = remove_watermarks_auto(data, exclude_regions=exclude)
+            if not result["success"]:
+                return JSONResponse({
+                    "success": False,
+                    "message": "未检测到水印区域，请手动框选",
+                    "preview_url": None,
+                })
+            result_bytes = result["result_bytes"]
+            regions_out = result["regions"]
+        else:
+            if w <= 0 or h <= 0:
+                raise HTTPException(400, "请指定有效的水印区域 (x,y,w,h)")
+            result_bytes = remove_watermark_by_rect(data, x, y, w, h)
+            regions_out = [{"x": x, "y": y, "w": w, "h": h, "method": "manual"}]
+
+        # 保存到临时预览
+        did = uuid.uuid4().hex[:12]
+        from backend.processor.engine import create_zip
+        _result_store[did] = {
+            "zip": create_zip([("watermark_removed.png", result_bytes, 0.0)]),
+            "images": [("watermark_removed.png", result_bytes)],
+        }
+
+        return JSONResponse({
+            "success": True,
+            "message": f"已去除 {len(regions_out)} 处水印",
+            "regions": regions_out,
+            "preview_url": f"/api/v2/preview/{did}/0",
+            "download_id": did,
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("remove-watermark failed")
+        raise HTTPException(500, f"去除水印失败: {e}")
+
+
+@app.post("/api/v2/search-watermark-text")
+async def v2_search_watermark_text(
+    file: UploadFile = File(...),
+    text: str = Form(...),
+):
+    """根据输入的文字内容搜索图片中的水印位置"""
+    data = _validate_and_read(file)
+    logger.info(f"search-watermark-text: {file.filename}, text={text}")
+
+    try:
+        result = find_watermark_by_text(data, text)
+        return JSONResponse(result)
+    except Exception as e:
+        logger.exception("search-watermark-text failed")
+        raise HTTPException(500, f"搜索失败: {e}")
+
+
+# ═══════════════════════════════════════════════════
+# 商品渲染 API
+# ═══════════════════════════════════════════════════
+
+render_jobs = {}  # task_id → 最后一次轮询到的状态缓存
+
+
+@app.post("/api/v2/render/analyze")
+async def render_analyze(
+    file: Optional[UploadFile] = File(None),
+    prompt: str = Form(...),
+    width: int = Form(1024),
+    height: int = Form(1024),
+):
+    """分析参考图（可选）并提交渲染任务
+
+    返回 task_id + 分析结果，前端轮询 /render/status 获取进度
+    """
+    from backend.processor.engine import create_zip
+
+    data = _validate_and_read(file) if file else None
+    logger.info(f"render analyze: {file.filename if file else '无参考图'}, prompt='{prompt[:50]}...'")
+
+    try:
+        result = analyze_and_render(
+            image_bytes=data,
+            prompt=prompt,
+            width=width,
+            height=height,
+        )
+        resp = {
+            "task_id": result["id"],
+            "status": result["status"],
+            "analysis": result.get("analysis", {}),
+            "enhanced_prompt": result.get("enhanced_prompt", prompt),
+        }
+        # 如果同步完成，直接提供下载
+        if result.get("result_bytes") and result["status"] == "completed":
+            did = uuid.uuid4().hex[:12]
+            _result_store[did] = {
+                "zip": create_zip([("render_result.png", result["result_bytes"], 0.0)]),
+                "images": [("render_result.png", result["result_bytes"])],
+            }
+            resp["preview_url"] = f"/api/v2/preview/{did}/0"
+            resp["download_id"] = did
+        return JSONResponse(resp)
+    except Exception as e:
+        logger.exception("render analyze failed")
+        raise HTTPException(500, f"渲染分析失败: {e}")
+
+
+@app.get("/api/v2/render/status/{task_id}")
+async def render_status(task_id: str):
+    """轮询渲染任务状态"""
+    result = poll_render_status(task_id)
+    if result.get("status") == "not_found":
+        raise HTTPException(404, "任务不存在")
+
+    resp = {
+        "task_id": task_id,
+        "status": result["status"],
+        "enhanced_prompt": result.get("enhanced_prompt", ""),
+        "progress": result.get("progress", 0),
+        "error": result.get("error"),
+    }
+
+    if result.get("result_bytes"):
+        # 缓存结果
+        did = uuid.uuid4().hex[:12]
+        from backend.processor.engine import create_zip
+        _result_store[did] = {
+            "zip": create_zip([("render_result.png", result["result_bytes"], 0.0)]),
+            "images": [("render_result.png", result["result_bytes"])],
+        }
+        resp["preview_url"] = f"/api/v2/preview/{did}/0"
+        resp["download_id"] = did
+
+    if result.get("result_url"):
+        resp["result_url"] = result["result_url"]
+
+    return JSONResponse(resp)
+
+
+@app.get("/api/v2/render/jobs")
+async def render_jobs_list():
+    """获取所有渲染任务列表"""
+    jobs = task_store.get_all()
+    return JSONResponse([{
+        "id": j["id"],
+        "status": j["status"],
+        "prompt": j.get("enhanced_prompt", j["prompt"])[:80],
+        "size": j["size"],
+        "error": j.get("error"),
+    } for j in jobs[-20:]])  # 最近 20 条
 
 
 # ═══════════════════════════════════════════════════

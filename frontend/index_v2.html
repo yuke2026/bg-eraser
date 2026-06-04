@@ -133,75 +133,227 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-
     <div class="glass rounded-2xl md:rounded-3xl p-4 md:p-6 opacity-50 pointer-events-none" id="step2">
       <p class="font-semibold text-gray-800 mb-4">② 告诉AI怎么做</p>
 
-      <!-- Quick templates -->
-      <p class="text-xs font-medium text-gray-500 mb-2">⚡ 快捷模板</p>
-      <div class="grid grid-cols-2 gap-2 mb-4">
-        <div class="template-btn" data-template="taobao"><span class="text-base">🛍</span> 淘宝主图<br><span class="text-xs text-gray-400 font-normal">去背景+水印+800×800</span></div>
-        <div class="template-btn" data-template="douyin"><span class="text-base">📱</span> 抖音商品卡<br><span class="text-xs text-gray-400 font-normal">去背景+水印+1080×1920</span></div>
-        <div class="template-btn" data-template="pdd"><span class="text-base">🎯</span> 拼多多白底<br><span class="text-xs text-gray-400 font-normal">去背景+白底+750×750</span></div>
-        <div class="template-btn" data-template="jd"><span class="text-base">🏪</span> 京东商品图<br><span class="text-xs text-gray-400 font-normal">去背景+水印+1200×1200</span></div>
+      <!-- Mode Toggle -->
+      <div class="flex gap-2 mb-4 p-1 rounded-xl bg-gray-50 border border-gray-100">
+        <button id="modeEcom" class="mode-btn flex-1 py-2 px-3 text-sm font-medium rounded-lg bg-white shadow-sm border border-gray-200 text-gray-700 transition-all">🖼 电商处理</button>
+        <button id="modeWatermark" class="mode-btn flex-1 py-2 px-3 text-sm font-medium rounded-lg text-gray-500 hover:text-gray-700 transition-all">🧹 去水印</button>
+        <button id="modeRender" class="mode-btn flex-1 py-2 px-3 text-sm font-medium rounded-lg text-gray-500 hover:text-gray-700 transition-all">🎨 商品渲染</button>
       </div>
 
-      <!-- Quick commands -->
-      <p class="text-xs font-medium text-gray-500 mb-2">💬 常用指令（点击填入）</p>
-      <div class="flex flex-wrap gap-1.5 mb-4">
-        <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="去背景 + 加水印">去背景+水印</button>
-        <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="去背景 + 换白色背景">去背景+白底</button>
-        <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="加水印">仅加水印</button>
-        <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="去背景 + 800×800">去背景+改尺寸</button>
-        <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="去背景 + 加水印 + 800×800">全套处理</button>
-        <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="换蓝色背景">换背景色</button>
+      <!-- ── 电商处理模式 ── -->
+      <div id="ecomMode">
+        <!-- Quick templates -->
+        <p class="text-xs font-medium text-gray-500 mb-2">⚡ 快捷模板</p>
+        <div class="grid grid-cols-2 gap-2 mb-4">
+          <div class="template-btn" data-template="taobao"><span class="text-base">🛍</span> 淘宝主图<br><span class="text-xs text-gray-400 font-normal">去背景+水印+800×800</span></div>
+          <div class="template-btn" data-template="douyin"><span class="text-base">📱</span> 抖音商品卡<br><span class="text-xs text-gray-400 font-normal">去背景+水印+1080×1920</span></div>
+          <div class="template-btn" data-template="pdd"><span class="text-base">🎯</span> 拼多多白底<br><span class="text-xs text-gray-400 font-normal">去背景+白底+750×750</span></div>
+          <div class="template-btn" data-template="jd"><span class="text-base">🏪</span> 京东商品图<br><span class="text-xs text-gray-400 font-normal">去背景+水印+1200×1200</span></div>
+        </div>
+
+        <!-- Quick commands -->
+        <p class="text-xs font-medium text-gray-500 mb-2">💬 常用指令（点击填入）</p>
+        <div class="flex flex-wrap gap-1.5 mb-4">
+          <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="去背景 + 加水印">去背景+水印</button>
+          <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="去背景 + 换白色背景">去背景+白底</button>
+          <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="加水印">仅加水印</button>
+          <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="去背景 + 800×800">去背景+改尺寸</button>
+          <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="去背景 + 加水印 + 800×800">全套处理</button>
+          <button class="quick-cmd text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-cmd="换蓝色背景">换背景色</button>
+        </div>
+
+        <!-- Custom prompt -->
+        <div class="flex items-center gap-2 mb-2">
+          <div class="flex-1 h-px bg-gray-100"></div>
+          <span class="text-xs text-gray-300">或自定义指令</span>
+          <div class="flex-1 h-px bg-gray-100"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 p-3 mb-3">
+          <textarea id="promptInput" class="w-full border-0 outline-none resize-none text-sm text-gray-700 placeholder-gray-400" rows="2" placeholder="描述你要怎么处理，例如&#10;去背景 + logo右下角 + 800×800"></textarea>
+          <div id="cmdTags" class="flex gap-1.5 mt-2 pt-2 border-t border-gray-50 min-h-[28px]"></div>
+        </div>
+
+        <!-- Settings -->
+        <div class="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-gray-100 mb-3">
+          <span class="text-sm shrink-0">📐</span>
+          <span class="text-xs text-gray-600 shrink-0">尺寸预设</span>
+          <select id="sizePreset" class="ml-auto text-xs border border-gray-200 rounded-lg px-2 py-1 text-gray-600 bg-white">
+            <option value="">不调整</option>
+            <option value="800x800">淘宝 800×800</option>
+            <option value="1200x1200">京东 1200×1200</option>
+            <option value="750x750">拼多多 750×750</option>
+            <option value="1080x1920">抖音 1080×1920</option>
+            <option value="custom">自定义</option>
+          </select>
+        </div>
+        <div id="customSize" class="hidden flex items-center gap-2 p-2.5 rounded-xl bg-white border border-gray-100 mb-3">
+          <input id="cw" class="w-16 px-2 py-1 border border-gray-200 rounded-lg text-xs text-center" placeholder="宽" value="800">
+          <span class="text-xs text-gray-400">×</span>
+          <input id="ch" class="w-16 px-2 py-1 border border-gray-200 rounded-lg text-xs text-center" placeholder="高" value="800">
+        </div>
+
+        <!-- Watermark position -->
+        <div class="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-gray-100 mb-3">
+          <span class="text-sm shrink-0">📍</span>
+          <span class="text-xs text-gray-600 shrink-0">水印位置</span>
+          <div class="flex gap-1.5 pos-wrap" id="posSelector">
+            <button class="pos-btn active" data-pos="top-left">↖ 左上</button>
+            <button class="pos-btn" data-pos="top-right">↗ 右上</button>
+            <button class="pos-btn" data-pos="bottom-right">↘ 右下</button>
+            <button class="pos-btn" data-pos="bottom-left">↙ 左下</button>
+          </div>
+        </div>
+
+        <button id="processBtn" class="w-full py-3 bg-gradient-to-r from-violet-500 to-blue-500 text-white font-semibold rounded-2xl hover:from-violet-600 hover:to-blue-600 transition shadow-lg shadow-violet-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+          <span>✨</span> 开始处理 <span id="processCount">0</span> 张图片
+        </button>
       </div>
 
-      <!-- Custom prompt -->
-      <div class="flex items-center gap-2 mb-2">
-        <div class="flex-1 h-px bg-gray-100"></div>
-        <span class="text-xs text-gray-300">或自定义指令</span>
-        <div class="flex-1 h-px bg-gray-100"></div>
-      </div>
+      <!-- ── 去水印模式 ── -->
+      <div id="watermarkMode" class="hidden">
+        <div class="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
+          <p class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+            <span class="text-lg">🧹</span> 智能去水印
+          </p>
+          <p class="text-xs text-gray-400 mb-4">自动检测或输入水印文字精确定位</p>
 
-      <div class="bg-white rounded-2xl border border-gray-100 p-3 mb-3">
-        <textarea id="promptInput" class="w-full border-0 outline-none resize-none text-sm text-gray-700 placeholder-gray-400" rows="2" placeholder="描述你要怎么处理，例如&#10;去背景 + logo右下角 + 800×800"></textarea>
-        <div id="cmdTags" class="flex gap-1.5 mt-2 pt-2 border-t border-gray-50 min-h-[28px]"></div>
-      </div>
+          <!-- Text search input -->
+          <div class="flex items-center gap-2 mb-3">
+            <input id="wmTextInput" type="text"
+                   class="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-violet-400 transition"
+                   placeholder="输入水印文字精确搜索，如 JD.COM">
+            <button id="wmSearchTextBtn"
+                    class="px-3 py-2 bg-blue-500 text-white text-xs font-medium rounded-xl hover:bg-blue-600 transition flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+              <span>🔎</span> 搜索
+            </button>
+          </div>
 
-      <!-- Settings -->
-      <div class="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-gray-100 mb-3">
-        <span class="text-sm shrink-0">📐</span>
-        <span class="text-xs text-gray-600 shrink-0">尺寸预设</span>
-        <select id="sizePreset" class="ml-auto text-xs border border-gray-200 rounded-lg px-2 py-1 text-gray-600 bg-white">
-          <option value="">不调整</option>
-          <option value="800x800">淘宝 800×800</option>
-          <option value="1200x1200">京东 1200×1200</option>
-          <option value="750x750">拼多多 750×750</option>
-          <option value="1080x1920">抖音 1080×1920</option>
-          <option value="custom">自定义</option>
-        </select>
-      </div>
-      <div id="customSize" class="hidden flex items-center gap-2 p-2.5 rounded-xl bg-white border border-gray-100 mb-3">
-        <input id="cw" class="w-16 px-2 py-1 border border-gray-200 rounded-lg text-xs text-center" placeholder="宽" value="800">
-        <span class="text-xs text-gray-400">×</span>
-        <input id="ch" class="w-16 px-2 py-1 border border-gray-200 rounded-lg text-xs text-center" placeholder="高" value="800">
-      </div>
+          <div class="flex items-center gap-2 mb-3">
+            <div class="flex-1 h-px bg-gray-100"></div>
+            <span class="text-xs text-gray-300">或自动检测</span>
+            <div class="flex-1 h-px bg-gray-100"></div>
+          </div>
 
-      <!-- Watermark position -->
-      <div class="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-gray-100 mb-3">
-        <span class="text-sm shrink-0">📍</span>
-        <span class="text-xs text-gray-600 shrink-0">水印位置</span>
-        <div class="flex gap-1.5 pos-wrap" id="posSelector">
-          <button class="pos-btn active" data-pos="top-left">↖ 左上</button>
-          <button class="pos-btn" data-pos="top-right">↗ 右上</button>
-          <button class="pos-btn" data-pos="bottom-right">↘ 右下</button>
-          <button class="pos-btn" data-pos="bottom-left">↙ 左下</button>
+          <div id="wmDetectResult" class="hidden mb-3">
+            <div class="flex items-center gap-2 p-2.5 bg-green-50 border border-green-100 rounded-xl mb-3">
+              <span class="text-sm">✅</span>
+              <span class="text-xs text-green-700" id="wmDetectMsg">已检测到水印区域</span>
+            </div>
+            <!-- Preview with overlay -->
+            <div class="relative rounded-xl overflow-hidden bg-gray-50 mb-3" style="aspect-ratio:1/1;max-height:280px;">
+              <img id="wmPreview" class="w-full h-full object-contain" style="display:none;">
+              <canvas id="wmCanvas" class="w-full h-full" style="display:none;cursor:move;"></canvas>
+              <div id="wmDetectLoading" class="flex items-center justify-center h-full text-gray-400 text-sm">
+                <div class="spinner mr-2"></div> 检测中...
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-2">
+            <button id="wmDetectBtn" class="flex-1 py-2.5 bg-violet-500 text-white text-sm font-medium rounded-xl hover:bg-violet-600 transition flex items-center justify-center gap-2">
+              <span>🔍</span> 检测水印
+            </button>
+            <button id="wmRemoveBtn" class="flex-1 py-2.5 bg-emerald-500 text-white text-sm font-medium rounded-xl hover:bg-emerald-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+              <span>✨</span> 一键去除
+            </button>
+          </div>
         </div>
       </div>
 
-      <button id="processBtn" class="w-full py-3 bg-gradient-to-r from-violet-500 to-blue-500 text-white font-semibold rounded-2xl hover:from-violet-600 hover:to-blue-600 transition shadow-lg shadow-violet-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-        <span>✨</span> 开始处理 <span id="processCount">0</span> 张图片
-      </button>
-    </div>
+      <!-- ── 商品渲染模式 ── -->
+      <div id="renderMode" class="hidden">
+        <div class="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
+          <p class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+            <span class="text-lg">🎨</span> AI 商品渲染
+          </p>
+          <p class="text-xs text-gray-400 mb-4">上传商品参考图（可选），输入渲染描述，AI自动生成</p>
 
-    <!-- ─────── Step 3: Results ─────── -->
+          <!-- Reference image -->
+          <div class="mb-3">
+            <p class="text-xs font-medium text-gray-500 mb-2">商品参考图 <span class="text-gray-300">(可选)</span></p>
+            <div id="renderUpload" class="upload-zone rounded-xl p-6 text-center cursor-pointer">
+              <div class="flex flex-col items-center gap-1">
+                <span class="text-2xl">📸</span>
+                <p class="text-xs text-gray-500 mt-1">点击上传参考图</p>
+                <p class="text-xs text-gray-400">或拖拽图片到此处</p>
+              </div>
+            </div>
+            <div id="renderPreviewWrap" class="hidden relative mt-2">
+              <img id="renderPreview" class="w-full rounded-xl object-contain bg-gray-50" style="max-height:180px;">
+              <button id="renderRemoveImg" class="absolute top-2 right-2 w-7 h-7 bg-white/80 rounded-full flex items-center justify-center text-xs text-gray-500 hover:text-red-500">✕</button>
+            </div>
+          </div>
+
+          <!-- Prompt input -->
+          <div class="mb-3">
+            <p class="text-xs font-medium text-gray-500 mb-2">渲染描述</p>
+            <textarea id="renderPrompt"
+              class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-violet-400 transition resize-none"
+              rows="3"
+              placeholder="描述想要的渲染效果，如：在阳光明媚的户外草地上，自然光，浅景深，产品居中放置，周围有鲜花点缀，温馨生活风格"></textarea>
+          </div>
+
+          <!-- Quick styles -->
+          <div class="mb-3">
+            <p class="text-xs font-medium text-gray-500 mb-2">快捷风格</p>
+            <div class="flex flex-wrap gap-1.5">
+              <button class="render-quick text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-prompt="纯白背景，专业3C产品摄影，均匀顶部布光，高细节，8K画质，产品居中展示">📱 白底数码</button>
+              <button class="render-quick text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-prompt="暗色赛博朋克风格，RGB氛围灯光，科技感几何背景，动态光效，电竞桌面场景，霓虹蓝紫配色">🎮 电竞科技</button>
+              <button class="render-quick text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-prompt="简约办公桌面场景，浅色木纹桌面，自然侧光，整洁舒适，绿植点缀，现代极简风格">💻 桌面办公</button>
+              <button class="render-quick text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-prompt="现代智能家居环境，温暖室内光，科技产品融入生活场景，温馨舒适，真实质感，自然色调">🏠 智能家居</button>
+              <button class="render-quick text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-prompt="深色背景，金属拉丝质感，高级侧逆光，产品特写微距，低调奢华科技风，高反差光影">💎 高端质感</button>
+              <button class="render-quick text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-200 transition text-gray-600" data-prompt="户外自然场景，青绿植被背景，柔和自然日光，科技产品与环境融合，清新通透风格">🌲 户外科技</button>
+            </div>
+          </div>
+
+          <!-- Size selection -->
+          <div class="mb-3">
+            <p class="text-xs font-medium text-gray-500 mb-2">输出尺寸</p>
+            <div class="flex gap-2">
+              <select id="renderSize" class="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-violet-400 transition bg-white">
+                <option value="1024x1024">1:1 正方形 (1024×1024)</option>
+                <option value="1216x832">4:3 横版 (1216×832)</option>
+                <option value="832x1216">3:4 竖版 (832×1216)</option>
+                <option value="1344x768">16:9 宽屏 (1344×768)</option>
+                <option value="768x1344">9:16 手机 (768×1344)</option>
+                <option value="1536x640">电商主图 (1536×640)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Analysis / result area -->
+          <div id="renderAnalysis" class="hidden mb-3 p-3 bg-violet-50 border border-violet-100 rounded-xl">
+            <p class="text-xs font-semibold text-violet-700 mb-2">🧠 AI 分析结果</p>
+            <div id="renderAnalysisContent" class="text-xs text-violet-600 space-y-1"></div>
+          </div>
+
+          <div id="renderProgress" class="hidden mb-3 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="spinner"></div>
+              <span class="text-xs font-medium text-blue-700" id="renderProgressText">正在渲染中...</span>
+            </div>
+            <div class="w-full bg-blue-100 rounded-full h-1.5">
+              <div id="renderProgressBar" class="bg-blue-500 h-1.5 rounded-full transition-all duration-500" style="width:0%"></div>
+            </div>
+          </div>
+
+          <div id="renderResult" class="hidden mb-3">
+            <p class="text-xs font-medium text-gray-500 mb-2">✨ 渲染结果</p>
+            <img id="renderResultImg" class="w-full rounded-xl border border-gray-100 object-contain bg-gray-50" style="max-height:300px;">
+          </div>
+
+          <div class="flex gap-2">
+            <button id="renderGenBtn" class="flex-1 py-2.5 bg-violet-500 text-white text-sm font-medium rounded-xl hover:bg-violet-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+              <span>🚀</span> 开始渲染
+            </button>
+            <button id="renderDownloadBtn" class="flex-1 py-2.5 bg-emerald-500 text-white text-sm font-medium rounded-xl hover:bg-emerald-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hidden">
+              <span>📥</span> 下载结果
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="glass rounded-2xl md:rounded-3xl p-4 md:p-6 opacity-50 pointer-events-none" id="step3">
       <div class="flex items-center justify-between mb-4">
         <p class="font-semibold text-gray-800">③ 下载成果</p>
@@ -245,7 +397,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-
 
   <!-- Footer -->
   <div class="text-center mt-8 text-xs text-gray-400">
-    💡 提示：上传图片 → 选模板或写指令 → 一键处理下载
+    💡 去水印模式：拖拽四角可缩放，拖拽区域可移动，点击✕排除，再点「一键去除」
   </div>
 </div>
 
@@ -253,7 +405,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-
 // ═══════════════════════════════════════════════════
 //  State
 // ═══════════════════════════════════════════════════
-const API_BASE = window.location.origin.includes('localhost') ? 'http://localhost:8000' : '';
+const API_BASE = '';
 let uploadedFiles = [];
 let logoFile = null;
 let processedResults = [];
@@ -293,6 +445,512 @@ const resultStats = document.getElementById('resultStats');
 const resultCount = document.getElementById('resultCount');
 const downloadZipBtn = document.getElementById('downloadZipBtn');
 const resetBtn = document.getElementById('resetBtn');
+
+// ═══════════════════════════════════════════════════
+//  Mode Toggle (电商处理 / 去水印 / 商品渲染)
+// ═══════════════════════════════════════════════════
+let currentMode = 'ecom'; // 'ecom' | 'watermark' | 'render'
+const modeEcom = document.getElementById('modeEcom');
+const modeWatermark = document.getElementById('modeWatermark');
+const modeRender = document.getElementById('modeRender');
+const ecomMode = document.getElementById('ecomMode');
+const watermarkMode = document.getElementById('watermarkMode');
+const renderMode = document.getElementById('renderMode');
+
+function switchMode(mode) {
+  currentMode = mode;
+  const btns = [modeEcom, modeWatermark, modeRender];
+  btns.forEach(b => {
+    b.classList.remove('bg-white', 'shadow-sm', 'border', 'border-gray-200', 'text-gray-700');
+    b.classList.add('text-gray-500');
+  });
+  const active = mode === 'ecom' ? modeEcom : mode === 'watermark' ? modeWatermark : modeRender;
+  active.classList.add('bg-white', 'shadow-sm', 'border', 'border-gray-200', 'text-gray-700');
+  active.classList.remove('text-gray-500');
+  ecomMode.classList.toggle('hidden', mode !== 'ecom');
+  watermarkMode.classList.toggle('hidden', mode !== 'watermark');
+  renderMode.classList.toggle('hidden', mode !== 'render');
+  // Reset process button text
+  document.getElementById('processBtn').style.display = mode === 'ecom' ? 'flex' : 'none';
+}
+
+modeEcom.addEventListener('click', () => switchMode('ecom'));
+modeWatermark.addEventListener('click', () => switchMode('watermark'));
+modeRender.addEventListener('click', () => switchMode('render'));
+
+// ═══════════════════════════════════════════════════
+//  Text-based Watermark Search
+// ═══════════════════════════════════════════════════
+const wmTextInput = document.getElementById('wmTextInput');
+const wmSearchTextBtn = document.getElementById('wmSearchTextBtn');
+
+wmSearchTextBtn.addEventListener('click', async () => {
+  const text = wmTextInput.value.trim();
+  if (!text) {
+    alert('请输入水印文字，如 JD.COM、Shutterstock');
+    return;
+  }
+  if (uploadedFiles.length === 0) {
+    alert('请先上传一张图片');
+    return;
+  }
+
+  // Show detection UI
+  wmDetectResult.classList.remove('hidden');
+  wmPreview.style.display = 'none';
+  wmCanvas.style.display = 'none';
+  wmDetectLoading.style.display = 'flex';
+  wmSearchTextBtn.disabled = true;
+  wmSearchTextBtn.innerHTML = '<div class="spinner"></div>';
+
+  try {
+    const form = new FormData();
+    form.append('file', uploadedFiles[0]);
+    form.append('text', text);
+
+    const res = await fetch(`${API_BASE}/api/v2/search-watermark-text`, {
+      method: 'POST', body: form,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+
+    if (data.found) {
+      wmDetectedRegions = [{
+        x: data.x, y: data.y, w: data.w, h: data.h, method: 'text-search',
+      }];
+      wmIgnoredIndices = new Set();
+
+      // Show canvas with the found region
+      const imgUrl = URL.createObjectURL(uploadedFiles[0]);
+      const img = new Image();
+      img.onload = () => {
+        wmDetectLoading.style.display = 'none';
+        wmCanvas.style.display = 'block';
+        drawWatermarkCanvas(img);
+        wmDetectMsg.textContent = `✅ 已找到「${text}」（置信度 ${(data.confidence * 100).toFixed(0)}%），可拖拽调整`;
+        wmRemoveBtn.disabled = false;
+      };
+      img.src = imgUrl;
+    } else {
+      wmDetectLoading.style.display = 'none';
+      wmDetectMsg.textContent = `未找到「${text}」文字水印，请尝试自动检测`;
+      wmRemoveBtn.disabled = true;
+    }
+
+  } catch (err) {
+    wmDetectLoading.style.display = 'none';
+    wmDetectMsg.textContent = `搜索失败: ${err.message}`;
+  } finally {
+    wmSearchTextBtn.disabled = false;
+    wmSearchTextBtn.innerHTML = '<span>🔎</span> 搜索';
+  }
+});
+
+// Press Enter in text input to trigger search
+wmTextInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') wmSearchTextBtn.click();
+});
+
+// ═══════════════════════════════════════════════════
+//  Watermark Detection & Removal
+// ═══════════════════════════════════════════════════
+let wmDetectedRegions = [];
+let wmIgnoredIndices = new Set();
+let wmOriginalImageBytes = null;
+
+const wmDetectBtn = document.getElementById('wmDetectBtn');
+const wmRemoveBtn = document.getElementById('wmRemoveBtn');
+const wmDetectResult = document.getElementById('wmDetectResult');
+const wmDetectMsg = document.getElementById('wmDetectMsg');
+const wmPreview = document.getElementById('wmPreview');
+const wmCanvas = document.getElementById('wmCanvas');
+const wmDetectLoading = document.getElementById('wmDetectLoading');
+
+wmDetectBtn.addEventListener('click', async () => {
+  if (uploadedFiles.length === 0) {
+    alert('请先上传一张图片');
+    return;
+  }
+
+  wmDetectResult.classList.remove('hidden');
+  wmPreview.style.display = 'none';
+  wmCanvas.style.display = 'none';
+  wmDetectLoading.style.display = 'flex';
+  wmDetectBtn.disabled = true;
+  wmDetectBtn.innerHTML = '<div class="spinner"></div> 检测中...';
+  wmIgnoredIndices = new Set();
+
+  try {
+    const form = new FormData();
+    form.append('file', uploadedFiles[0]);
+
+    const res = await fetch(`${API_BASE}/api/v2/detect-watermark`, {
+      method: 'POST', body: form,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    wmDetectedRegions = data.regions || [];
+
+    // Show original image on canvas with overlay
+    const imgUrl = URL.createObjectURL(uploadedFiles[0]);
+    const img = new Image();
+    img.onload = () => {
+      wmDetectLoading.style.display = 'none';
+      wmPreview.style.display = 'none';
+      wmCanvas.style.display = 'block';
+
+      drawWatermarkCanvas(img);
+
+      if (wmDetectedRegions.length > 0) {
+        wmDetectMsg.textContent = `已检测到 ${wmDetectedRegions.length} 处水印 — 拖拽四角缩放，拖拽区域移动`;
+        wmRemoveBtn.disabled = false;
+      } else {
+        wmDetectMsg.textContent = '未检测到水印区域';
+        wmRemoveBtn.disabled = true;
+      }
+    };
+    img.src = imgUrl;
+
+  } catch (err) {
+    wmDetectLoading.style.display = 'none';
+    wmPreview.style.display = 'block';
+    wmPreview.src = '';
+    wmDetectMsg.textContent = `检测失败: ${err.message}`;
+    wmRemoveBtn.disabled = true;
+  } finally {
+    wmDetectBtn.disabled = false;
+    wmDetectBtn.innerHTML = '<span>🔍</span> 检测水印';
+  }
+});
+
+function drawWatermarkCanvas(img) {
+  const canvas = wmCanvas;
+  const ctx = canvas.getContext('2d');
+  const maxW = canvas.parentElement.clientWidth;
+  const maxH = 280;
+  const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+  canvas.width = img.width * scale;
+  canvas.height = img.height * scale;
+
+  // Draw image
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  // Store scale for coordinate mapping
+  canvas._scale = scale;
+  canvas._imgW = img.width;
+  canvas._imgH = img.height;
+
+  wmDetectedRegions.forEach((r, i) => {
+    const ignored = wmIgnoredIndices.has(i);
+    const sx = r.x * scale;
+    const sy = r.y * scale;
+    const sw = r.w * scale;
+    const sh = r.h * scale;
+
+    if (sw < 2 || sh < 2) return;
+
+    if (ignored) {
+      ctx.strokeStyle = '#9ca3af';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(sx, sy, sw, sh);
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(156,163,175,0.15)';
+      ctx.fillRect(sx, sy, sw, sh);
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = '11px sans-serif';
+      ctx.fillText(`✕ 已忽略 ${i+1}`, sx + 4, sy - 5);
+    } else {
+      // Red dashed box
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 3]);
+      ctx.strokeRect(sx, sy, sw, sh);
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(239,68,68,0.08)';
+      ctx.fillRect(sx, sy, sw, sh);
+
+      // Label
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText(`⚠ ${i+1}`, sx + 4, sy - 5);
+
+      // Resize handles (white fill + red border) at 4 corners
+      const corners = [
+        [sx - HS, sy - HS],               // top-left
+        [sx + sw - HS, sy - HS],           // top-right
+        [sx - HS, sy + sh - HS],           // bottom-left
+        [sx + sw - HS, sy + sh - HS],      // bottom-right
+      ];
+      corners.forEach(([hx, hy]) => {
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1.5;
+        ctx.fillRect(hx, hy, HS * 2, HS * 2);
+        ctx.strokeRect(hx, hy, HS * 2, HS * 2);
+      });
+
+      // ✕ exclude button (circle on top-right corner outside box)
+      const btnX = sx + sw + 10;
+      const btnY = sy - 10;
+      ctx.beginPath();
+      ctx.arc(btnX, btnY, 8, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.fill();
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#ef4444';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('✕', btnX, btnY);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+    }
+  });
+}
+
+// ── Canvas interaction: drag to move / resize ──
+const HS = 8; // resize handle half-size (canvas px)
+let wmDragState = null;
+/* {
+  type: 'move'|'resize',
+  idx: number,
+  corner: 'tl'|'tr'|'bl'|'br'|null,
+  startX, startY,  // canvas coords at pointer-down
+  origX, origY, origW, origH  // region coords at pointer-down
+} */
+
+function _getCanvasPos(e) {
+  const rect = wmCanvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  const scaleX = wmCanvas.width / rect.width;
+  const scaleY = wmCanvas.height / rect.height;
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY,
+  };
+}
+
+function _hitTestWm(cx, cy) {
+  const s = wmCanvas._scale;
+  // Check regions in reverse (topmost first)
+  for (let i = wmDetectedRegions.length - 1; i >= 0; i--) {
+    const r = wmDetectedRegions[i];
+    if (wmIgnoredIndices.has(i)) continue;
+    const sx = r.x * s, sy = r.y * s, sw = r.w * s, sh = r.h * s;
+
+    // Corner resize handles (16×16 squares)
+    const corners = [
+      ['tl', sx - HS, sy - HS],
+      ['tr', sx + sw - HS, sy - HS],
+      ['bl', sx - HS, sy + sh - HS],
+      ['br', sx + sw - HS, sy + sh - HS],
+    ];
+    for (const [corner, hx, hy] of corners) {
+      if (cx >= hx && cx <= hx + HS * 2 &&
+          cy >= hy && cy <= hy + HS * 2) {
+        return { region: i, action: 'resize', corner };
+      }
+    }
+
+    // ✕ exclude button (circle at top-right)
+    const btnCX = sx + sw + 10;
+    const btnCY = sy - 10;
+    const dx = cx - btnCX, dy = cy - btnCY;
+    if (dx * dx + dy * dy <= 8 * 8) {
+      return { region: i, action: 'exclude' };
+    }
+
+    // Body (drag to move)
+    if (cx >= sx && cx <= sx + sw && cy >= sy && cy <= sy + sh) {
+      return { region: i, action: 'move' };
+    }
+  }
+  return null;
+}
+
+function _wmPointerDown(e) {
+  if (wmDetectedRegions.length === 0) return;
+  const pos = _getCanvasPos(e);
+  const hit = _hitTestWm(pos.x, pos.y);
+  if (!hit) return;
+
+  const r = wmDetectedRegions[hit.region];
+
+  if (hit.action === 'exclude') {
+    // Toggle exclude on ✕ click
+    if (wmIgnoredIndices.has(hit.region)) {
+      wmIgnoredIndices.delete(hit.region);
+    } else {
+      wmIgnoredIndices.add(hit.region);
+    }
+    _redrawWmCanvas();
+    _updateWmStatus();
+    e.preventDefault();
+    return;
+  }
+
+  // Start drag
+  wmDragState = {
+    type: hit.action,
+    idx: hit.region,
+    corner: hit.corner || null,
+    startX: pos.x,
+    startY: pos.y,
+    origX: r.x,
+    origY: r.y,
+    origW: r.w,
+    origH: r.h,
+  };
+  e.preventDefault();
+}
+
+function _wmPointerMove(e) {
+  if (!wmDragState) return;
+  const pos = _getCanvasPos(e);
+  const s = wmCanvas._scale || 1;
+  const dx = (pos.x - wmDragState.startX) / s;
+  const dy = (pos.y - wmDragState.startY) / s;
+  const r = wmDetectedRegions[wmDragState.idx];
+  const MIN = 10;
+
+  if (wmDragState.type === 'move') {
+    r.x = Math.max(0, wmDragState.origX + dx);
+    r.y = Math.max(0, wmDragState.origY + dy);
+    // Clamp so box stays within image
+    const iw = wmCanvas._imgW || Infinity;
+    const ih = wmCanvas._imgH || Infinity;
+    r.x = Math.min(r.x, iw - r.w);
+    r.y = Math.min(r.y, ih - r.h);
+  } else if (wmDragState.type === 'resize') {
+    let { origX: ox, origY: oy, origW: ow, origH: oh } = wmDragState;
+    const corner = wmDragState.corner;
+    let nx = ox, ny = oy, nw = ow, nh = oh;
+
+    if (corner.includes('r')) { nw = Math.max(MIN, ow + dx); }
+    else { nw = Math.max(MIN, ow - dx); nx = ox + ow - nw; }
+
+    if (corner.includes('b')) { nh = Math.max(MIN, oh + dy); }
+    else { nh = Math.max(MIN, oh - dy); ny = oy + oh - nh; }
+
+    // Clamp to image bounds
+    const iw = wmCanvas._imgW || Infinity;
+    const ih = wmCanvas._imgH || Infinity;
+    r.x = Math.max(0, Math.min(nx, iw - MIN));
+    r.y = Math.max(0, Math.min(ny, ih - MIN));
+    r.w = Math.max(MIN, Math.min(nw, iw - r.x));
+    r.h = Math.max(MIN, Math.min(nh, ih - r.y));
+  }
+
+  _redrawWmCanvas();
+  e.preventDefault();
+}
+
+function _wmPointerUp() {
+  if (!wmDragState) return;
+  wmDragState = null;
+  _updateWmStatus();
+}
+
+function _redrawWmCanvas() {
+  const imgUrl = URL.createObjectURL(uploadedFiles[0]);
+  const img = new Image();
+  img.onload = () => drawWatermarkCanvas(img);
+  img.src = imgUrl;
+}
+
+function _updateWmStatus() {
+  const active = wmDetectedRegions.filter((_, i) => !wmIgnoredIndices.has(i));
+  wmRemoveBtn.disabled = active.length === 0;
+  const excluded = wmIgnoredIndices.size;
+  if (excluded > 0) {
+    wmDetectMsg.textContent = `将去除 ${active.length} 处水印（${excluded} 处已排除）`;
+  } else {
+    wmDetectMsg.textContent = `已检测到 ${wmDetectedRegions.length} 处水印 — 拖拽四角缩放，拖拽区域移动`;
+  }
+}
+
+// Bind canvas events (mouse + touch)
+wmCanvas.addEventListener('mousedown', _wmPointerDown);
+window.addEventListener('mousemove', _wmPointerMove);
+window.addEventListener('mouseup', _wmPointerUp);
+wmCanvas.addEventListener('touchstart', _wmPointerDown, { passive: false });
+window.addEventListener('touchmove', _wmPointerMove, { passive: false });
+window.addEventListener('touchend', _wmPointerUp);
+
+wmRemoveBtn.addEventListener('click', async () => {
+  const activeRegions = wmDetectedRegions.filter((_, i) => !wmIgnoredIndices.has(i));
+  if (uploadedFiles.length === 0 || activeRegions.length === 0) return;
+
+  wmRemoveBtn.disabled = true;
+  wmRemoveBtn.innerHTML = '<div class="spinner"></div> 去除中...';
+
+  try {
+    const form = new FormData();
+    form.append('file', uploadedFiles[0]);
+    // Send user-adjusted regions directly — ensure integer coords
+    const safeRegions = activeRegions.map(r => ({
+      x: Math.max(0, Math.round(r.x)),
+      y: Math.max(0, Math.round(r.y)),
+      w: Math.max(10, Math.round(r.w)),
+      h: Math.max(10, Math.round(r.h)),
+      method: 'manual',
+    }));
+    form.append('regions', JSON.stringify(safeRegions));
+    form.append('auto', 'false');
+
+    const res = await fetch(`${API_BASE}/api/v2/remove-watermark`, {
+      method: 'POST', body: form,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+
+    if (!data.success) {
+      wmDetectMsg.textContent = data.message || '未检测到水印';
+      return;
+    }
+
+    // Show result
+    const fullUrl = `${API_BASE}${data.preview_url}`;
+    const img = new Image();
+    img.onload = () => {
+      wmCanvas.style.display = 'none';
+      wmPreview.style.display = 'block';
+      wmPreview.src = fullUrl;
+      wmDetectMsg.textContent = `✅ ${data.message}`;
+    };
+    img.src = fullUrl;
+
+    // Show in results grid (step 3)
+    updateStep3();
+    loadingState.classList.add('hidden');
+    resultsGrid.classList.remove('hidden');
+    resultsGrid.innerHTML = `
+      <div class="col-span-2 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm fade-in">
+        <div class="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">
+          <img src="${fullUrl}" class="w-full h-full object-contain cursor-pointer"
+               onclick="openLightbox('${fullUrl}')">
+        </div>
+        <div class="p-2.5">
+          <p class="text-xs font-medium text-gray-700 truncate">去水印结果</p>
+          <p class="text-xs text-gray-400">已处理 ${activeRegions.length} 处水印</p>
+        </div>
+      </div>`;
+    downloadArea.classList.remove('hidden');
+    resultStats.textContent = '';
+    resultCount.textContent = '1/1 成功';
+    window._lastDownloadId = data.download_id;
+
+  } catch (err) {
+    wmDetectMsg.textContent = `去除失败: ${err.message}`;
+  } finally {
+    wmRemoveBtn.disabled = false;
+    wmRemoveBtn.innerHTML = '<span>✨</span> 一键去除';
+  }
+});
 
 // ═══════════════════════════════════════════════════
 //  File Upload
@@ -646,6 +1304,207 @@ resetBtn.addEventListener('click', () => location.reload());
     // 忽略，没有默认LOGO不影响使用
   }
 })();
+
+// ═══════════════════════════════════════════════════
+//  商品渲染模式
+// ═══════════════════════════════════════════════════
+let renderFile = null;
+let renderTaskId = null;
+let renderPollTimer = null;
+
+const renderUpload = document.getElementById('renderUpload');
+const renderPreviewWrap = document.getElementById('renderPreviewWrap');
+const renderPreview = document.getElementById('renderPreview');
+const renderRemoveImg = document.getElementById('renderRemoveImg');
+const renderPrompt = document.getElementById('renderPrompt');
+const renderSize = document.getElementById('renderSize');
+const renderAnalysis = document.getElementById('renderAnalysis');
+const renderAnalysisContent = document.getElementById('renderAnalysisContent');
+const renderProgress = document.getElementById('renderProgress');
+const renderProgressText = document.getElementById('renderProgressText');
+const renderProgressBar = document.getElementById('renderProgressBar');
+const renderResult = document.getElementById('renderResult');
+const renderResultImg = document.getElementById('renderResultImg');
+const renderGenBtn = document.getElementById('renderGenBtn');
+const renderDownloadBtn = document.getElementById('renderDownloadBtn');
+
+// Upload reference image
+renderUpload.addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/jpeg,image/png,image/webp';
+  input.onchange = () => {
+    if (input.files[0]) {
+      renderFile = input.files[0];
+      renderPreview.src = URL.createObjectURL(renderFile);
+      renderPreviewWrap.classList.remove('hidden');
+      renderUpload.classList.add('hidden');
+    }
+  };
+  input.click();
+});
+
+// Drag & drop
+renderUpload.addEventListener('dragover', (e) => { e.preventDefault(); renderUpload.classList.add('drag-over'); });
+renderUpload.addEventListener('dragleave', () => renderUpload.classList.remove('drag-over'));
+renderUpload.addEventListener('drop', (e) => {
+  e.preventDefault();
+  renderUpload.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) {
+    renderFile = f;
+    renderPreview.src = URL.createObjectURL(f);
+    renderPreviewWrap.classList.remove('hidden');
+    renderUpload.classList.add('hidden');
+  }
+});
+
+// Remove reference image
+renderRemoveImg.addEventListener('click', () => {
+  renderFile = null;
+  renderPreviewWrap.classList.add('hidden');
+  renderUpload.classList.remove('hidden');
+  renderPreview.src = '';
+});
+
+// Quick style buttons
+document.querySelectorAll('.render-quick').forEach(btn => {
+  btn.addEventListener('click', () => {
+    renderPrompt.value = btn.dataset.prompt;
+    renderPrompt.focus();
+  });
+});
+
+// Generate
+renderGenBtn.addEventListener('click', async () => {
+  const prompt = renderPrompt.value.trim();
+  if (!prompt) {
+    alert('请输入渲染描述');
+    return;
+  }
+
+  // Reset UI
+  renderAnalysis.classList.add('hidden');
+  renderProgress.classList.remove('hidden');
+  renderProgressText.textContent = renderFile ? '正在分析参考图...' : '正在生成渲染图...';
+  renderProgressBar.style.width = '10%';
+  renderGenBtn.disabled = true;
+  renderResult.classList.add('hidden');
+  renderDownloadBtn.classList.add('hidden');
+
+  // Parse size
+  const size = renderSize.value.split('x').map(Number);
+  const [width, height] = size;
+
+  try {
+    // Step 1: Submit
+    const form = new FormData();
+    if (renderFile) {
+      form.append('file', renderFile);
+    }
+    form.append('prompt', prompt);
+    form.append('width', width);
+    form.append('height', height);
+
+    const res = await fetch(`${API_BASE}/api/v2/render/analyze`, {
+      method: 'POST', body: form,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+
+    renderTaskId = data.task_id;
+    renderProgressBar.style.width = '20%';
+
+    // Show analysis
+    if (data.analysis && Object.keys(data.analysis).length > 0) {
+      const a = data.analysis;
+      let html = '';
+      for (const [key, val] of Object.entries(a)) {
+        if (key === 'prompt_enhancement') continue;
+        html += `<div class="flex justify-between"><span>${key}</span><span class="font-medium">${val}</span></div>`;
+      }
+      if (a.prompt_enhancement) {
+        html += `<div class="mt-2 pt-2 border-t border-violet-200"><span>增强提示词:</span><br><span class="font-medium text-violet-800 text-[11px]">${a.prompt_enhancement}</span></div>`;
+      }
+      renderAnalysisContent.innerHTML = html;
+      renderAnalysis.classList.remove('hidden');
+    }
+
+    renderProgressText.textContent = data.status === 'no_api_key'
+      ? '⚠️ AI渲染需要配置API Key'
+      : '已提交渲染任务，正在等待AI生成...';
+    renderProgressBar.style.width = data.status === 'no_api_key' ? '100%' : '30%';
+
+    // Step 2: Poll for status (if no API key configured, show what we have)
+    if (data.status === 'no_api_key') {
+      renderGenBtn.disabled = false;
+      return;
+    }
+
+    startRenderPolling();
+
+  } catch (err) {
+    renderProgress.classList.add('hidden');
+    renderGenBtn.disabled = false;
+    alert(`渲染失败: ${err.message}`);
+  }
+});
+
+function startRenderPolling() {
+  if (renderPollTimer) clearInterval(renderPollTimer);
+
+  renderPollTimer = setInterval(async () => {
+    if (!renderTaskId) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/v2/render/status/${renderTaskId}`);
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+
+      if (data.status === 'completed') {
+        clearInterval(renderPollTimer);
+        renderPollTimer = null;
+        renderProgressBar.style.width = '100%';
+        renderProgressText.textContent = '✅ 渲染完成!';
+
+        // Show result
+        setTimeout(() => {
+          renderProgress.classList.add('hidden');
+          if (data.preview_url) {
+            renderResultImg.src = `${API_BASE}${data.preview_url}`;
+            renderResult.classList.remove('hidden');
+            renderDownloadBtn.classList.remove('hidden');
+            renderDownloadBtn.onclick = () => {
+              const a = document.createElement('a');
+              a.href = renderResultImg.src;
+              a.download = 'render_result.png';
+              a.click();
+            };
+          }
+          renderGenBtn.disabled = false;
+        }, 800);
+
+      } else if (data.status === 'failed') {
+        clearInterval(renderPollTimer);
+        renderPollTimer = null;
+        renderProgressText.textContent = `❌ 渲染失败: ${data.error || '未知错误'}`;
+        renderProgressBar.style.width = '100%';
+        renderGenBtn.disabled = false;
+
+      } else if (data.status === 'processing') {
+        renderProgressText.textContent = 'AI 正在生成渲染图...';
+        renderProgressBar.style.width = `${data.progress || 50}%`;
+      }
+    } catch (err) {
+      // Silently retry
+    }
+  }, 3000);
+}
+
+// Cleanup polling on page leave
+window.addEventListener('beforeunload', () => {
+  if (renderPollTimer) clearInterval(renderPollTimer);
+});
 
 </script>
 </body>
