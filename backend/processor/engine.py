@@ -3,7 +3,7 @@
 import io
 import zipfile
 from typing import Any
-from PIL import Image
+from PIL import Image, ImageFilter
 
 from rembg import remove, new_session
 
@@ -46,6 +46,10 @@ def change_bg_color(image_bytes: bytes, color: str = "#ffffff") -> bytes:
 
     bg = Image.new("RGBA", img.size, _hex_to_rgba(color))
     composite = Image.alpha_composite(bg, img).convert("RGB")
+
+    # 锐化：补偿 rembg 边缘柔化
+    composite = composite.filter(ImageFilter.UnsharpMask(radius=0.3, percent=30, threshold=1))
+
     out = io.BytesIO()
     composite.save(out, format="PNG")
     return out.getvalue()
@@ -85,6 +89,9 @@ def resize_image(
 
     else:  # stretch
         img = img.resize((width, height), Image.LANCZOS)
+
+    # 锐化：补偿 resize 导致的边缘柔化
+    img = img.filter(ImageFilter.UnsharpMask(radius=0.5, percent=50, threshold=2))
 
     out = io.BytesIO()
     img.convert("RGB").save(out, format="PNG")
