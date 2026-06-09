@@ -115,6 +115,7 @@ TEMPLATES: dict[str, list[dict[str, Any]]] = {
         {"action": "remove_bg", "params": {}},
         {"action": "change_bg_color", "params": {"color": "#ffffff"}},
         {"action": "resize", "params": {"width": 750, "height": 750, "mode": "contain"}},
+        {"action": "add_watermark", "params": {"position": "top-left"}},
     ],
     "douyin": [
         {"action": "remove_bg", "params": {}},
@@ -134,6 +135,6 @@ def get_templates_list() -> dict:
     return {
         "taobao": {"name": "淘宝主图", "desc": "去背景+水印+800×800", "icon": "🛍"},
         "jd": {"name": "京东商品图", "desc": "去背景+水印+1200×1200", "icon": "🏪"},
-        "pdd": {"name": "拼多多白底图", "desc": "去背景+白底+750×750", "icon": "🎯"},
+        "pdd": {"name": "拼多多白底图", "desc": "去背景+白底+水印+750×750", "icon": "🎯"},
         "douyin": {"name": "抖音商品卡", "desc": "去背景+水印+1080×1920", "icon": "📱"},
     }

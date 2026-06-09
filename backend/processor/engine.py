@@ -25,9 +25,25 @@ def remove_background(image_bytes: bytes) -> bytes:
 
 
 def change_bg_color(image_bytes: bytes, color: str = "#ffffff") -> bytes:
-    """去背景 + 换背景色"""
-    nobg = remove(image_bytes, session=_session)
-    img = Image.open(io.BytesIO(nobg)).convert("RGBA")
+    """去背景 + 换背景色
+
+    如果输入已是透明 RGBA（已去过背景），直接合成背景色，
+    避免重复跑 rembg 导致质量下降。
+    """
+    # 检测是否已是透明图
+    try:
+        test_img = Image.open(io.BytesIO(image_bytes))
+        is_already_transparent = test_img.mode == "RGBA"
+    except Exception:
+        is_already_transparent = False
+
+    if is_already_transparent:
+        # 直接合成，不重复调用 rembg
+        img = test_img.convert("RGBA")
+    else:
+        nobg = remove(image_bytes, session=_session)
+        img = Image.open(io.BytesIO(nobg)).convert("RGBA")
+
     bg = Image.new("RGBA", img.size, _hex_to_rgba(color))
     composite = Image.alpha_composite(bg, img).convert("RGB")
     out = io.BytesIO()
