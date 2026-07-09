@@ -1369,6 +1369,7 @@ function openThumbLightbox(idx) {
         uploadedFiles[idx] = rotated;
         document.dispatchEvent(new Event('renderRefUpdate'));
         lb.querySelector('#lbImg').src = URL.createObjectURL(rotated);
+        renderFileList();
         btn.textContent = labels[deg] || '↻';
         btn.disabled = false;
       } catch (err) {
