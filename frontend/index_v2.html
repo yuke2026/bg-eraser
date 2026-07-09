@@ -997,14 +997,8 @@ function renderFileList() {
     div.innerHTML = `
       <div class="flex flex-col items-center gap-1">
         <div class="relative">
-          <img src="${url}" class="file-thumb" onclick="openLightbox('${url}')">
+          <img src="${url}" class="file-thumb" onclick="openThumbLightbox(${i})">
           <button class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-400 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-500" data-idx="${i}">×</button>
-        </div>
-        <div class="flex gap-0.5">
-          <button class="s1-rotate text-[10px] px-1 py-0.5 rounded-md border border-gray-200 bg-white text-gray-400 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600 leading-none" data-idx="${i}" data-deg="-90" title="左旋90°">↺</button>
-          <button class="s1-rotate text-[10px] px-1 py-0.5 rounded-md border border-gray-200 bg-white text-gray-400 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600 leading-none" data-idx="${i}" data-deg="90" title="右旋90°">↻</button>
-          <button class="s1-rotate text-[10px] px-1 py-0.5 rounded-md border border-gray-200 bg-white text-gray-400 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600 leading-none" data-idx="${i}" data-deg="180" title="旋转180°">⟳</button>
-          <button class="s1-rotate text-[10px] px-1 py-0.5 rounded-md border border-gray-200 bg-white text-gray-400 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600 leading-none" data-idx="${i}" data-deg="360" title="自动转正">↻</button>
         </div>
       </div>
     `;
@@ -1024,26 +1018,6 @@ clearFiles.onclick = () => {
   updateStep2();
   document.dispatchEvent(new Event('renderRefUpdate'));
 };
-
-// Step 1 rotation — event delegation on fileThumbs
-fileThumbs.addEventListener('click', async (e) => {
-  const btn = e.target.closest('.s1-rotate');
-  if (!btn) return;
-  const idx = parseInt(btn.dataset.idx);
-  const deg = parseInt(btn.dataset.deg);
-  btn.disabled = true;
-  btn.textContent = '⏳';
-  try {
-    const rotated = await canvasRotate(uploadedFiles[idx], deg);
-    uploadedFiles[idx] = rotated;
-    // Trigger renderRefUpdate so 商品渲染模式 picks up the new file
-    document.dispatchEvent(new Event('renderRefUpdate'));
-    renderFileList();
-  } catch (err) {
-    alert('旋转失败: ' + err.message);
-    renderFileList();
-  }
-});
 
 // Canvas-based image rotation (client-side, no server round-trip)
 // Uses createImageBitmap with EXIF auto-orientation for 转正(360)
@@ -1352,12 +1326,59 @@ downloadZipBtn.addEventListener('click', () => {
   window.open(`${API_BASE}/api/v2/download/${did}`, '_blank');
 });
 
-// Lightbox — 点击图片放大预览
+// Lightbox — 结果预览（仅查看，无旋转）
 function openLightbox(src) {
   const lb = document.createElement('div');
   lb.className = 'lightbox';
   lb.onclick = () => lb.remove();
-  lb.innerHTML = `<img src="${src}">`;
+  lb.innerHTML = `<img src="${src}" class="max-w-[90vw] max-h-[90vh] object-contain rounded-xl shadow-2xl">`;
+  document.body.appendChild(lb);
+}
+
+// Lightbox — Step 1 缩略图放大预览，含旋转控制
+function openThumbLightbox(idx) {
+  const file = uploadedFiles[idx];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const labels = { '-90': '↺ 左旋90°', '90': '↻ 右旋90°', '180': '⟳ 180°', '360': '↻ 转正' };
+
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.onclick = (e) => { if (e.target === lb) lb.remove(); };
+
+  lb.innerHTML = `
+    <div class="flex flex-col items-center gap-4" onclick="event.stopPropagation()">
+      <img src="${url}" id="lbImg" class="max-w-[90vw] max-h-[75vh] object-contain rounded-xl shadow-2xl">
+      <div class="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-xl px-4 py-2.5">
+        <span class="text-white/60 text-xs mr-1">🔄</span>
+        <button class="lb-rotate text-sm px-3 py-1.5 rounded-lg bg-white/20 text-white hover:bg-white/40 transition cursor-pointer font-medium" data-deg="-90">↺ 左旋90°</button>
+        <button class="lb-rotate text-sm px-3 py-1.5 rounded-lg bg-white/20 text-white hover:bg-white/40 transition cursor-pointer font-medium" data-deg="90">↻ 右旋90°</button>
+        <button class="lb-rotate text-sm px-3 py-1.5 rounded-lg bg-white/20 text-white hover:bg-white/40 transition cursor-pointer font-medium" data-deg="180">⟳ 180°</button>
+        <button class="lb-rotate text-sm px-3 py-1.5 rounded-lg bg-white/20 text-white hover:bg-white/40 transition cursor-pointer font-medium" data-deg="360">↻ 转正</button>
+      </div>
+    </div>
+  `;
+
+  lb.querySelectorAll('.lb-rotate').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const deg = btn.dataset.deg;
+      btn.disabled = true;
+      btn.textContent = '⏳';
+      try {
+        const rotated = await canvasRotate(uploadedFiles[idx], parseInt(deg));
+        uploadedFiles[idx] = rotated;
+        document.dispatchEvent(new Event('renderRefUpdate'));
+        lb.querySelector('#lbImg').src = URL.createObjectURL(rotated);
+        btn.textContent = labels[deg] || '↻';
+        btn.disabled = false;
+      } catch (err) {
+        alert('旋转失败: ' + err.message);
+        btn.textContent = labels[deg] || '↻';
+        btn.disabled = false;
+      }
+    });
+  });
+
   document.body.appendChild(lb);
 }
 
