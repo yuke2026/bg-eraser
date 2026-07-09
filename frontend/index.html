@@ -146,6 +146,78 @@
 
     /* ── File input hidden ── */
     #fileInput { display: none; }
+
+    /* ── Image Zoom Modal ── */
+    .zoom-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0,0,0,.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+      opacity: 0;
+      transition: opacity .25s ease;
+      pointer-events: none;
+    }
+    .zoom-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .zoom-overlay img {
+      max-width: 92vw;
+      max-height: 92vh;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.5);
+      transform: scale(.92);
+      transition: transform .3s ease;
+    }
+    .zoom-overlay.show img {
+      transform: scale(1);
+    }
+    .zoom-close {
+      position: fixed;
+      top: 20px;
+      right: 24px;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.15);
+      border: none;
+      color: #fff;
+      font-size: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s;
+      z-index: 10000;
+    }
+    .zoom-close:hover { background: rgba(255,255,255,.3); }
+    .zoom-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.92);
+      border: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,.18);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .15s;
+      z-index: 10;
+      color: #475569;
+    }
+    .zoom-btn:hover {
+      background: #fff;
+      box-shadow: 0 4px 16px rgba(0,0,0,.25);
+      color: #1e293b;
+      transform: scale(1.08);
+    }
   </style>
 </head>
 <body>
@@ -218,6 +290,12 @@
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="comparison-wrap checker" id="cmpWrap">
           <img class="img-before" id="imgBefore" alt="原图" />
+          <button class="zoom-btn" id="zoomBtn" title="查看原图" onclick="openZoom()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+            </svg>
+          </button>
           <img class="img-after"  id="imgAfter"  alt="去背景" />
           <div class="slider-line"></div>
           <div class="slider-knob">
@@ -578,6 +656,31 @@
       errorState.classList.add('hidden');
       resultSection.classList.add('hidden');
     }
+  </script>
+
+  <!-- ═══ Image Zoom Modal ═══ -->
+  <div class="zoom-overlay" id="zoomOverlay" onclick="closeZoom(event)">
+    <button class="zoom-close" onclick="closeZoom()">✕</button>
+    <img id="zoomImage" alt="原图放大" />
+  </div>
+
+  <script>
+    // ── Zoom ──
+    function openZoom() {
+      const img = document.getElementById('zoomImage');
+      img.src = document.getElementById('imgBefore').src;
+      document.getElementById('zoomOverlay').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeZoom(e) {
+      // Only close when clicking the overlay itself or the close button
+      if (e && e.target !== document.getElementById('zoomOverlay') && e.target.tagName !== 'BUTTON') return;
+      document.getElementById('zoomOverlay').classList.remove('show');
+      document.body.style.overflow = '';
+    }
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeZoom({ target: document.getElementById('zoomOverlay') });
+    });
   </script>
 </body>
 </html>

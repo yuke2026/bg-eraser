@@ -128,6 +128,11 @@ async def v2_process(
         actions = get_template(template)
         if not actions:
             raise HTTPException(400, f"未知模板: {template}")
+        # 如果有额外 prompt（如旋转指令），合并到模板操作链前
+        if prompt:
+            extra = parse_prompt(prompt)
+            if extra["actions"]:
+                actions = extra["actions"] + actions
     elif prompt:
         parsed = parse_prompt(prompt)
         actions = parsed["actions"]
@@ -456,7 +461,7 @@ async def remove_bg(file: UploadFile = File(...)):
     data = _validate_and_read(file)
     logger.info(f"remove_bg: {file.filename}")
     try:
-        output = remove(data, session=session)
+        output = remove_background(data)
     except Exception as e:
         raise HTTPException(500, f"Processing failed: {e}")
     name = os.path.splitext(file.filename or "image")[0]

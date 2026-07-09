@@ -11,6 +11,7 @@ INTENT_PATTERNS: list[tuple[str, str]] = [
     (r"换(.{1,4})背景|改成(.{1,4})底|背景变|背景改成", "change_bg_color"),
     (r"拼图|合并|合成|拼接|拼在一起", "composite"),
     (r"批量|所有图|全部图|每张", "batch_flag"),
+    (r"旋转|转正|翻转|顺时针|逆时针|竖屏|横屏|倒过来", "rotate"),
 ]
 
 POSITION_PATTERNS: list[tuple[str, str]] = [
@@ -77,6 +78,22 @@ def parse_prompt(prompt: str) -> dict[str, Any]:
                     break
             if "position" not in action["params"]:
                 action["params"]["position"] = "top-left"
+
+        # 旋转参数
+        if intent == "rotate":
+            # 检测角度数值
+            deg_match = re.search(r"(\d+)\s*度", text)
+            if deg_match:
+                deg = int(deg_match.group(1))
+            elif re.search(r"顺|右", text):
+                deg = 90
+            elif re.search(r"逆|左", text):
+                deg = -90
+            elif re.search(r"180|倒过|翻转", text):
+                deg = 180
+            else:
+                deg = 90  # 默认顺时针90度
+            action["params"]["degrees"] = deg
 
         # 尺寸参数
         if intent == "resize":

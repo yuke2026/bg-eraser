@@ -7,6 +7,9 @@ from PIL import Image, ImageFilter
 
 from rembg import remove, new_session
 
+import numpy as np
+import cv2
+
 # 全局 rembg session
 _session = new_session("u2net")
 
@@ -19,9 +22,63 @@ def _hex_to_rgba(hex_color: str) -> tuple[int, int, int, int]:
     return (r, g, b, 255)
 
 
+def _enhance_alpha_edge(alpha: np.ndarray, amount: float = 1.0) -> np.ndarray:
+    """锐化 alpha 通道的边缘过渡 — 用 Unsharp Mask 减少过渡区宽度。
+
+    rembg 输出的 alpha 通道在边缘处通常是渐变过渡（软边缘），
+    原图有水印/文字等元素时过渡区更宽更模糊。
+
+    本函数对 alpha 通道做 Unsharp Mask（非 RGB），精准增强边缘
+    梯度，缩小过渡区。不碰 RGB 像素，只影响透明度过渡。
+
+    Args:
+        alpha: (H, W) uint8 — 0=透明, 255=不透明
+        amount: 0.0=不变, 0.5~1.5=建议范围
+
+    Returns:
+        增强后的 alpha 通道
+    """
+    if amount <= 0:
+        return alpha
+
+    blurred = cv2.GaussianBlur(alpha, (0, 0), 2)  # sigma=2
+    alpha_f = alpha.astype(np.float32)
+    sharpened = alpha_f + amount * (alpha_f - blurred.astype(np.float32))
+    return np.clip(sharpened, 0, 255).astype(np.uint8)
+
+
 def remove_background(image_bytes: bytes) -> bytes:
-    """去背景 → 返回透明PNG bytes"""
-    return remove(image_bytes, session=_session)
+    """去背景 → 返回透明PNG bytes（带边缘增强后处理）"""
+    # 1. rembg 推理 → RGBA
+    result_rgba = remove(image_bytes, session=_session)
+
+    # 2. 提取 alpha 通道做边缘增强
+    img = Image.open(io.BytesIO(result_rgba)).convert("RGBA")
+    r, g, b, a = img.split()
+
+    alpha_np = np.array(a, dtype=np.uint8)
+
+    # 判断是否需要增强：检测 alpha 过渡区像素比例
+    edge_pixels = np.sum((alpha_np > 30) & (alpha_np < 225))
+    total = alpha_np.shape[0] * alpha_np.shape[1]
+    edge_ratio = edge_pixels / total
+
+    if edge_ratio > 0.01:
+        # 过渡区明显 → 用 Unsharp Mask 锐化边缘
+        alpha_enhanced = _enhance_alpha_edge(alpha_np, amount=1.0)
+        # 形态学清理：闭运算填小孔
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        alpha_enhanced = cv2.morphologyEx(alpha_enhanced, cv2.MORPH_CLOSE, kernel)
+    else:
+        alpha_enhanced = alpha_np
+
+    # 3. 重组 RGBA
+    enhanced_a = Image.fromarray(alpha_enhanced, mode="L")
+    output = Image.merge("RGBA", (r, g, b, enhanced_a))
+
+    out = io.BytesIO()
+    output.save(out, format="PNG")
+    return out.getvalue()
 
 
 def change_bg_color(image_bytes: bytes, color: str = "#ffffff") -> bytes:
@@ -38,17 +95,14 @@ def change_bg_color(image_bytes: bytes, color: str = "#ffffff") -> bytes:
         is_already_transparent = False
 
     if is_already_transparent:
-        # 直接合成，不重复调用 rembg
         img = test_img.convert("RGBA")
     else:
-        nobg = remove(image_bytes, session=_session)
+        # 使用增强版去背景
+        nobg = remove_background(image_bytes)
         img = Image.open(io.BytesIO(nobg)).convert("RGBA")
 
     bg = Image.new("RGBA", img.size, _hex_to_rgba(color))
     composite = Image.alpha_composite(bg, img).convert("RGB")
-
-    # 锐化：补偿 rembg 边缘柔化
-    composite = composite.filter(ImageFilter.UnsharpMask(radius=0.3, percent=30, threshold=1))
 
     out = io.BytesIO()
     composite.save(out, format="PNG")
@@ -89,9 +143,6 @@ def resize_image(
 
     else:  # stretch
         img = img.resize((width, height), Image.LANCZOS)
-
-    # 锐化：补偿 resize 导致的边缘柔化
-    img = img.filter(ImageFilter.UnsharpMask(radius=0.5, percent=50, threshold=2))
 
     out = io.BytesIO()
     img.convert("RGB").save(out, format="PNG")
@@ -140,6 +191,42 @@ def add_watermark(
     return out.getvalue()
 
 
+def rotate_image(image_bytes: bytes, degrees: int = 90) -> bytes:
+    """旋转图片 — 支持 90/180/270 度顺时针旋转，或自动转正(360=EXIF修正)。
+
+    当 degrees=360 时，读取 EXIF Orientation 标签，自动转正。
+    其他值：正数=顺时针, 负数=逆时针
+    """
+    img = Image.open(io.BytesIO(image_bytes))
+
+    if degrees == 360:
+        # 自动转正：读取 EXIF Orientation
+        try:
+            exif = img._getexif()
+            if exif:
+                orientation = exif.get(0x0112, 1)
+                # EXIF: 1=正常, 3=180°, 6=顺时针90°, 8=逆时针90°
+                # PIL rotate() 正数=逆时针(CCW), 负数=顺时针(CW)
+                if orientation == 3:
+                    degrees = 180
+                elif orientation == 6:
+                    degrees = -90   # 顺时针90°
+                elif orientation == 8:
+                    degrees = 90    # 逆时针90°
+                else:
+                    degrees = 0
+        except Exception:
+            degrees = 0
+        if degrees == 0:
+            return image_bytes  # 无需旋转
+
+    # expand=True 确保旋转后不裁剪
+    rotated = img.rotate(-degrees, expand=True, resample=Image.BICUBIC)
+    out = io.BytesIO()
+    rotated.save(out, format="PNG")
+    return out.getvalue()
+
+
 def process_pipeline(
     image_bytes: bytes,
     actions: list[dict[str, Any]],
@@ -182,6 +269,9 @@ def process_pipeline(
         elif action == "composite":
             # 简单拼接 — 需要多张图支持
             pass
+        elif action == "rotate":
+            deg = int(params.get("degrees", 90))
+            data = rotate_image(data, deg)
     return data
 
 

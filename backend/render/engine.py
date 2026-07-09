@@ -180,8 +180,13 @@ def _extract_product_mask(image: Image.Image) -> np.ndarray:
                 main_label = max(areas, key=lambda x: x[0])[1]
                 mask = np.where(labels == main_label, 255, 0).astype(np.uint8)
 
-        # 边缘羽化，让合成更自然
-        mask = cv2.GaussianBlur(mask, (9, 9), 2)
+        # 边缘羽化 — 用 unsharp 代替高斯模糊，保留边缘锐度同时去除锯齿
+        mask = cv2.GaussianBlur(mask, (5, 5), 1)
+        # 再用 sigmoid 拉伸恢复边缘锐利度
+        f = mask.astype(np.float32) / 255.0
+        x = np.clip(f, 0.001, 0.999)
+        enhanced = 1.0 / (1.0 + np.exp(-3.0 * (x - 0.5)))
+        mask = (enhanced * 255).astype(np.uint8)
 
         logger.info(f"rembg mask 提取成功: 前景 {non_zero}/{total_pixels} ({ratio:.1%})")
         return mask
